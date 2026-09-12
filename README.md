@@ -62,13 +62,14 @@ Everything is an **estimate for gating**, not a performance prediction:
 | Claim (default in UI) | Status |
 |---|---|
 | RTX PRO 6000 Blackwell $16,000 | **Verified** — NVIDIA marketplace, Sep 2026; MSRP was $8,565 (Mar 2025), 12-mo median $10,099 |
-| Hosted open-weight output $0.47/M | **Verified** — Qwen3.8-Flash-Next on Artificial Analysis; class median ≈ $0.53/M |
+| Hosted output $/M per model (Flash-Next $0.47; GLM-5.3-Flash $0.50; DS-V4-Flash $0.60 off-peak / $1.20 peak; 27B $3.00) | **Verified** 2026-09-12 — Artificial Analysis, z.ai, DeepSeek, QwenCloud pricing pages |
 | H200 $30–40 K outright, ~$2.4–4/GPU-h rented (Sep 2026) | **Verified** — 2026 GPU pricing trackers |
 | H100/B200/B300/4×H200-server prices | **Unverified estimates** — 2026 HBM shortage moves these fast; enter real quotes |
+| Resale 40% on all cards | **Assumption** (user set, Sep 2026) — 1 y of a 3–4 y corporate amortization horizon; a real 12-mo Mac trade-in returned 11% |
 | Used RTX 3090 $946 (+48% Jan→Jun) | **Unverified** — used market is volatile; edit to your real number |
 | DGX Spark $4,699 / Mac Studio 512 GB ~$16.5k | **Unverified** — from the video |
 | DRAM +172% in 2025 | **Not modeled** — it only reaches you through card prices and resale % |
-| Model tiers (V4-Flash-0731 284B/13B; GLM-5.3-Flash 320B/18B 1M ctx; GLM-4.7-Flash ~30B/3B; Qwen3.8 pair) | **Verified** — HF model cards / configs, 2026-09-12 |
+| Model tiers (V4-Flash-0731 284B/13B; GLM-5.3-Flash 320B/18B 1M ctx; Qwen3.8 pair) | **Verified** — HF model cards / configs, 2026-09-12 |
 
 ## Presets
 
@@ -77,7 +78,7 @@ server tier: H100 SXM 80 GB, H100 NVL 94 GB, H200 141 GB, B200 192 GB, B300 288 
 4×H200 2U server composite (SMB niche). Server prices are estimates except H200 — get real quotes.
 Models — **current-gen (2026) local tiers only** (verified from HF, 2026-09-12):
 GLM-5.3-Flash 320B/18B (1M ctx, 3×96 GB tier), DeepSeek-V4-Flash-0731 284B/13B (1M ctx,
-2×96 GB tier), Qwen3.8-Flash-Next (single-96 GB tier), GLM-4.7-Flash ~30B/3B (small),
+2×96 GB tier), Qwen3.8-Flash-Next (single-96 GB tier),
 Qwen3.8-27B dense. All fields editable; presets just fill them.
 Note: Kimi has no 2026 local-tier LLM — K3 / K2.7-Code (Jun 2026) are 1T-class flagships;
 its small models (Kimi-Linear-48B, Moonlight) are 2025 and were dropped with the rest.

@@ -53,13 +53,21 @@ reverse them silently:
   Qwen3-era presets (30B-A3B, 235B-A22B) were removed as dated/low-intelligence; so were
   GLM-4.5-Air (2025-07), Kimi-Linear-48B (2025-10), DeepSeek-Coder-V2-Lite (2024-06) after a
   first pass added them by name instead of date. Current preset set: GLM-5.3-Flash,
-  DeepSeek-V4-Flash-0731, Qwen3.8-Flash-Next, GLM-4.7-Flash, Qwen3.8-27B (all 2026, verified 2026-09-12).
+  DeepSeek-V4-Flash-0731, Qwen3.8-Flash-Next, Qwen3.8-27B (all 2026, verified 2026-09-12).
   GPT-OSS-120B deliberately absent (user: tail of the 2026 leaderboard).
 - **Kimi has no 2026 local-tier LLM** — K3 / K2.7-Code (Jun 2026) are 1T-class. Don't add
   2025 Kimi small models "for coverage".
+- **Resale % is a uniform 40% on every card** (user call, Sep 2026: one year of a 3–4 y
+  corporate amortization horizon), replacing the per-card 30–35% guesses. Per-card notes
+  no longer restate resale — the "Accuracy & sources" block is the single place it's
+  flagged, and the M3 Ultra note keeps the 11%-trade-in data point as a caveat.
+- **Hosted $/M is prefilled per model preset** (each model has its own API price,
+  verified 2026-09-12); the usage field stays user-editable and the strip's "Hosted
+  bar" follows it. Previously it was a single fixed 0.47 default — misleading for
+  models like Qwen3.8-27B at $3/M.
 - **Used-market prices and the DRAM trend are NOT verified** (volatile / no project
-  value). Verified 2026-09-12: RTX PRO 6000 $16k, hosted output $0.47/M — see README
-  data table; re-check before citing prices as facts.
+  value). Verified 2026-09-12: RTX PRO 6000 $16k, hosted output $/M per model —
+  see README data table; re-check before citing prices as facts.
 
 ## Known simplifications
 
