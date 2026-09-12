@@ -53,7 +53,8 @@ Everything is an **estimate for gating**, not a performance prediction:
   framework efficiency all move it); it only feeds the TTFT gate.
 - **TFLOPS fields are estimates** (FP16-dense class) where a clean published number
   didn't exist — appliance figures especially. Edit freely.
-- **KV/1K values** assume bf16 KV. fp8 KV halves them (use 0.5× in the field).
+- **KV/1K values** assume bf16 KV. fp8 KV halves them — not modeled, the preset's
+  KV value is fixed in the UI.
 - **Break-even horizon (3 y)** encodes "a better model lands in ~18 months; the card
   must pay for itself well before it's irrelevant".
 
