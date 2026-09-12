@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buy the card or rent the tokens?</title>
+<style>
+  :root { --bg:#101418; --panel:#181f26; --line:#2a333d; --fg:#dde5ec; --dim:#8fa1b0;
+          --ok:#2ea043; --rent:#d29922; --bad:#cf222e; --acc:#4d9fff; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font:15px/1.45 system-ui, -apple-system, Segoe UI, sans-serif; }
+  .wrap { max-width:1150px; margin:0 auto; padding:24px 16px 64px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:var(--dim); margin:0 0 20px; font-size:14px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:14px; }
+  fieldset { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+             margin:0; padding:12px 14px; }
+  legend { color:var(--acc); font-weight:600; padding:0 6px; font-size:13px;
+           text-transform:uppercase; letter-spacing:.06em; }
+  label { display:flex; justify-content:space-between; gap:8px; align-items:center;
+          font-size:13px; color:var(--dim); margin-top:8px; }
+  input, select { background:#0d1116; color:var(--fg); border:1px solid var(--line);
+          border-radius:6px; padding:5px 8px; font:inherit; }
+  input { width:110px; text-align:right; }
+  .price { width:84px; font-size:12px; padding:3px 6px; color:var(--dim); }
+  select { width:100%; margin-top:8px; }
+  select.inline { width:auto; margin-top:0; }
+  .note { font-size:12px; color:var(--dim); margin-top:10px; min-height:1em; }
+  .banner.bad { background:#2a1215; border-color:var(--bad); color:#e5535b; padding:10px 14px; border-radius:10px; margin-top:16px; font-size:14px; white-space:pre-wrap; }
+  table { border-collapse:collapse; width:100%; margin-top:22px; font-size:14px; }
+  th, td { border:1px solid var(--line); padding:7px 10px; text-align:right; }
+  th { color:var(--dim); font-weight:500; }
+  td:first-child, th:first-child { text-align:left; }
+  tbody tr { cursor:pointer; }
+  tbody tr:hover { background:#1c2530; }
+  tbody tr.sel { outline:2px solid var(--acc); outline-offset:-2px; }
+  .card-name { white-space:nowrap; }
+  .badge { display:inline-block; padding:2px 9px; border-radius:20px; font-size:12px;
+           font-weight:700; letter-spacing:.03em; }
+  .badge.ok   { background:#122a18; color:#4ac26b; border:1px solid var(--ok); }
+  .badge.rent { background:#2a230e; color:#e3b341; border:1px solid var(--rent); }
+  .badge.bad  { background:#2a1215; color:#e5535b; border:1px solid var(--bad); }
+  .strip { margin-top:14px; background:var(--panel); border:1px solid var(--line);
+           border-radius:10px; padding:12px 14px; font-size:14px; }
+  .strip .k { color:var(--dim); font-size:12px; text-transform:uppercase; letter-spacing:.05em; }
+  .strip .row { display:flex; gap:26px; flex-wrap:wrap; margin-top:8px; }
+  .strip .cell .v { font-size:16px; font-weight:600; }
+  .strip .reasons { margin-top:10px; color:var(--dim); font-size:13px; }
+  .hl { color:var(--acc); font-weight:700; }
+  .warn { color:var(--rent); }
+  details { margin-top:20px; color:var(--dim); font-size:13px; }
+  summary { cursor:pointer; color:var(--fg); }
+  details li { margin:4px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Buy the card or rent the tokens?</h1>
+  <p class="sub">Every card scored against the model you pick. Card specs are fixed (verified or
+  flagged estimates — see <b>Accuracy &amp; sources</b>); only the price column is yours to edit.
+  Click a row for details. All figures are estimates — the point is the verdict, not the decimal.</p>
+
+  <div class="grid">
+    <fieldset>
+      <legend>Model</legend>
+      <select id="m_preset"></select>
+      <label>Total params (B) <input id="m_total" type="number" step="0.1"></label>
+      <label>Active params (B) <input id="m_active" type="number" step="0.1"></label>
+      <label>Quant
+        <select id="m_bpw" class="inline">
+          <option value="2.0">BF16 / FP16 (2.0)</option>
+          <option value="1.0">FP8 (1.0)</option>
+          <option value="1.06">Q8_0 (~1.06)</option>
+          <option value="0.75">Q6_K (~0.75)</option>
+          <option value="0.69">Q5_K_M (~0.69)</option>
+          <option value="0.6" selected>Q4_K_M (~0.6)</option>
+          <option value="0.55">MXFP4 (~0.55)</option>
+          <option value="0.47">Q3_K_M (~0.47)</option>
+          <option value="0.4">Q2_K (~0.4)</option>
+        </select></label>
+      <label>KV per 1K tokens (GB) <input id="m_kv" type="number" step="0.001"></label>
+      <div class="note" id="m_note"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Your usage</legend>
+      <label>Usage hours / day <input id="u_hours" type="number" step="1"></label>
+      <label>Electricity (USD/kWh) <input id="u_kwh" type="number" step="0.01"></label>
+      <label>Working context (K tokens) <input id="u_ctx" type="number" step="1"></label>
+      <label>System prompt (K tokens) <input id="u_sys" type="number" step="1"></label>
+      <label>Hosted out (USD / M tok) <input id="u_hosted" type="number" step="0.01"></label>
+      <label>Measured t/s (override, blank = estimate) <input id="u_tps" type="number" step="1"></label>
+      <div class="note">Estimator efficiency: decode 50%, prefill 35% of peak.
+      t/s override applies to every card row.</div>
+    </fieldset>
+  </div>
+
+  <div id="err" class="banner bad" style="display:none"></div>
+
+  <table id="cards">
+    <thead>
+      <tr><th>Card</th><th>VRAM (used / total)</th><th>Bandwidth</th><th>Verdict</th>
+          <th>t/s</th><th>First token</th><th>Break-even</th><th>Price</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <div id="strip" class="strip" style="display:none"></div>
+
+  <details id="sources">
+    <summary>Accuracy &amp; sources (as of Sep 2026)</summary>
+    <div>
+      <p><b>Formulas</b> — fit: total×bytes + KV/1K×context + 2 GB overhead. Decode t/s:
+      bandwidth ÷ (active×bytes) × 50%. Prefill t/s: TFLOPS × 35% ÷ (2×active).
+      Break-even: price×(1−resale) ÷ (t/s × 3600 × h/day × hosted $/M × 365/10⁶).
+      Gates per card: fit → decode ≥ 5 t/s → TTFT ≤ 30 min (warn &gt; 5) → break-even ≤ 3 y = BUY.
+      Resale % per card is a fixed assumption in the preset data — check the notes below.</p>
+      <ul id="src_list"></ul>
+    </div>
+  </details>
+</div>
+
+<script src="calc.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const num = (id, d) => { const el = $(id); if (!el) throw new Error('missing element #' + id);
+  const v = parseFloat(el.value); return isNaN(v) ? d : v; };
+const numVal = (v, d) => { const x = parseFloat(v); return isNaN(x) ? d : x; };  // v = an element's .value
+
+// Fixed specs per card; only price is user-editable (row input).
+const CARDS = [
+ { id:'pro6000', name:'RTX PRO 6000 Blackwell 96 GB', vramGB:96, bandwidthGBs:1792, tflops:460, tdpW:600, idleW:30, priceUSD:16000, resalePct:40,
+   note:'Price $16,000 — NVIDIA marketplace, Sep 2026 (verified; MSRP was $8,565 in Mar 2025). TFLOPS est. Resale 40% = assumption.' },
+ { id:'3090', name:'RTX 3090 24 GB (used)', vramGB:24, bandwidthGBs:936, tflops:142, tdpW:350, idleW:25, priceUSD:946, resalePct:40,
+   note:'$946 — video claim, Jan–Jun 2026 used market (UNVERIFIED, volatile). Resale 40% = assumption.' },
+ { id:'4090', name:'RTX 4090 24 GB', vramGB:24, bandwidthGBs:1008, tflops:330, tdpW:450, idleW:25, priceUSD:1600, resalePct:40,
+   note:'Price is an estimate. Resale 40% = assumption.' },
+ { id:'5090', name:'RTX 5090 32 GB', vramGB:32, bandwidthGBs:1792, tflops:419, tdpW:575, idleW:30, priceUSD:2400, resalePct:40,
+   note:'Price is an estimate. Resale 40% = assumption.' },
+ { id:'2x4090', name:'2× RTX 4090 (PCIe, tensor-parallel)', vramGB:48, bandwidthGBs:1500, tflops:600, tdpW:950, idleW:50, priceUSD:3200, resalePct:40,
+   note:'Effective bandwidth ≈ 75% of 2×1008 (PCIe overhead) — est. Two breakers, ~950 W.' },
+ { id:'spark', name:'NVIDIA DGX Spark 128 GB', vramGB:128, bandwidthGBs:273, tflops:100, tdpW:170, idleW:12, priceUSD:4699, resalePct:30,
+   note:'Price/bandwidth from video (273 GB/s per spec sheet; $ UNVERIFIED). Soldered memory — resale 30% is a guess.' },
+ { id:'m3u', name:'Mac Studio M3 Ultra 512 GB', vramGB:512, bandwidthGBs:819, tflops:40, tdpW:280, idleW:10, priceUSD:16500, resalePct:35,
+   note:'~CAD 23k in video ≈ $16.5k USD. Soldered memory: one owner got 11% back at trade-in after 12 mo — resale 35% is a guess.' },
+ { id:'h100', name:'NVIDIA H100 SXM 80 GB (Hopper)', vramGB:80, bandwidthGBs:3350, tflops:989, tdpW:700, idleW:60, priceUSD:18000, resalePct:35,
+   note:'Specs public (3.35 TB/s HBM3). Price est. for the 2026 used/refurb Hopper market — UNVERIFIED.' },
+ { id:'h100nvl', name:'NVIDIA H100 NVL 94 GB (Hopper)', vramGB:94, bandwidthGBs:3900, tflops:989, tdpW:350, idleW:50, priceUSD:22000, resalePct:35,
+   note:'The ~96 GB H100 cut (PCIe, 94 GB). Price est. — UNVERIFIED.' },
+ { id:'h200', name:'NVIDIA H200 141 GB (Hopper)', vramGB:141, bandwidthGBs:4800, tflops:989, tdpW:700, idleW:60, priceUSD:30000, resalePct:35,
+   note:'Price $30–40 K outright, Sep 2026 (verified range, low end used). Rental: ~$2.4–4/GPU-h — the number to beat.' },
+ { id:'b200', name:'NVIDIA B200 192 GB (Blackwell)', vramGB:192, bandwidthGBs:8000, tflops:2250, tdpW:1000, idleW:80, priceUSD:40000, resalePct:35,
+   note:'Specs public (8 TB/s HBM3e). Price est. — UNVERIFIED; HBM shortage is pushing 2026 quotes up.' },
+ { id:'b300', name:'NVIDIA B300 288 GB (Blackwell Ultra)', vramGB:288, bandwidthGBs:8000, tflops:3000, tdpW:1200, idleW:90, priceUSD:48000, resalePct:35,
+   note:'Current-gen Blackwell. TFLOPS/price est. — UNVERIFIED. 288 GB HBM3e: a 1M-context MoE with KV to spare.' },
+ { id:'4xh200', name:'4× H200 2U server (SMB box, ~564 GB)', vramGB:564, bandwidthGBs:16300, tflops:3360, tdpW:3200, idleW:150, priceUSD:130000, resalePct:35,
+   note:'Composite: 4× H200 @ $30k + chassis/CPU/cooling ~$10k (price est. — get a real quote). Effective BW/TFLOPS at ~85% (NVLink TP overhead). ~3.2 kW: dedicated circuit, real cooling.' }
+];
+const MODELS = [
+ { id:'glm53-flash', name:'GLM-5.3-Flash 320B/18B (1M ctx, Aug 2026)', totalParamsB:320, activeParamsB:18, bytesPerWeight:0.6, kvPerKGB:0.05,
+   note:'320B/18B active (verified, model card). Hybrid: 34/45 linear-attn + 11 sparse-attn layers → KV ≈ 50 KB/token (estimate). ~192 GB Q4 → 3×96 GB tier, or 2×96 with reduced context. Natively multimodal; vendor claims it approaches Claude Opus 4.8 on coding.' },
+ { id:'ds-v4-flash', name:'DeepSeek-V4-Flash-0731 284B/13B (1M ctx, Jul 2026)', totalParamsB:284, activeParamsB:13, bytesPerWeight:0.55, kvPerKGB:0.02,
+   note:'284B/13B active, 1M ctx, native FP4+FP8 (verified, model card); 0731 = latest checkpoint. ~156 GB → 2×96 GB or 192 GB+ unified. Hybrid CSA/HCA attn: KV at 1M ≈ 20 GB (estimate; card claims 10% of V3.2 KV).' },
+ { id:'qwen38-flash', name:'Qwen3.8-Flash-Next (180 B total / 6 B active)', totalParamsB:129.6, activeParamsB:6, bytesPerWeight:0.55, kvPerKGB:0.025,
+   note:'GPU: 125 B LM + 4 B MTP + vision at ~MXFP4. +51 B n-gram table lives in system RAM (~26 GB Q4, gather is cheap). KV: only 12/48 layers cache (QSA), ≈ 25 KB/token.' },
+ { id:'glm47-flash', name:'GLM-4.7-Flash ~30B/3B (202K ctx, Jan 2026)', totalParamsB:30, activeParamsB:3.1, bytesPerWeight:0.6, kvPerKGB:0.38,
+   note:'~30B/3B derived from config (47 L, 64+1 experts × 1536) — verify on the model card. All layers full MHA (20 kv heads) → KV ≈ 380 KB/token (estimate, head_dim not in config); full 202K ctx ≈ 77 GB KV, so use fp8 KV (0.19) or shorter context.' },
+ { id:'qwen38-27b', name:'Qwen3.8-27B (dense, 256 K)', totalParamsB:27, activeParamsB:27, bytesPerWeight:0.6, kvPerKGB:0.256,
+   note:'Q4_K_M. KV: 64 layers × 4 kv heads × 256 dim, bf16 ≈ 256 KB/token (halve for fp8 KV).' }
+];
+const MODELF = [['totalParamsB','m_total'],['activeParamsB','m_active'],['bytesPerWeight','m_bpw'],['kvPerKGB','m_kv']];
+
+const USED = [
+ 'Used RTX 3090 $639 → $946 (+48%) Jan–Jun 2026 (video claim, UNVERIFIED, volatile).',
+ 'DRAM contract prices +172% across 2025 (video claim; not modeled — only via the price/resale fields).',
+ 'H100/B200/B300/4×H200-server prices are estimates — 2026 HBM shortage moves these fast; enter real quotes.',
+ 'All TFLOPS and resale % are estimates/assumptions (noted per card above).'
+];
+const VERIFIED = [
+ 'RTX PRO 6000 Blackwell: $16,000 on NVIDIA marketplace, Sep 2026 (verified); MSRP $8,565 Mar 2025.',
+ 'H200: $30–40K outright, ~$2.4–4/GPU-h rented, Sep 2026 (verified range).',
+ 'Hosted open-weight output: Qwen3.8-Flash-Next $0.47/M out, class median ≈ $0.53/M — Artificial Analysis (verified).',
+ 'Model tiers: V4-Flash-0731 284B/13B 1M ctx; GLM-5.3-Flash 320B/18B 1M ctx; GLM-4.7-Flash ~30B/3B; Qwen3.8 pair — HF model cards, 2026-09-12.'
+];
+
+// --- error surface: never fail silently (empty columns = this bug class) ---
+function fail(e) {
+  const el = $('err');
+  el.style.display = 'block';
+  const stack = (e.stack || '').split('\n').slice(1, 4).join(' | ').replace(/\/index\.html/g, '');
+  el.textContent = '⚠ ' + e.message + ((typeof LLMEcon === 'undefined')
+    ? ' — calc.js did not load. Open index.html from the project folder, or serve it (python3 -m http.server).'
+    : (stack ? ' — ' + stack : ''));
+}
+function safe(fn) { try { fn(); } catch (e) { fail(e); } }
+
+// --- model preset wiring (only the model dropdown fills fields) ---
+$('m_preset').innerHTML = MODELS.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+const applyModel = () => {
+  const d = MODELS.find(x => x.id === $('m_preset').value);
+  if (!d) return;
+  MODELF.forEach(([k, id]) => { $(id).value = d[k]; });
+  $('m_note').textContent = d.note || '';
+};
+$('m_preset').addEventListener('change', () => { applyModel(); safe(render); });
+
+// --- build card table rows once ---
+const tbody = document.querySelector('#cards tbody');
+tbody.innerHTML = CARDS.map(c => `
+  <tr data-card="${c.id}" title="${c.note.replace(/"/g,'&quot;')}">
+    <td class="card-name">${c.name}</td>
+    <td class="vram">${c.vramGB} GB</td>
+    <td>${(c.bandwidthGBs/1000).toFixed(c.bandwidthGBs < 1000 ? 2 : 1)} TB/s</td>
+    <td class="verdict"></td>
+    <td class="tps"></td>
+    <td class="ttft"></td>
+    <td class="be"></td>
+    <td><input class="price" data-card="${c.id}" type="number" step="100" value="${c.priceUSD}"></td>
+  </tr>`).join('');
+
+const BADGE = { BUY:['ok','BUY'], RENT:['rent','RENT'], NO_FIT:['bad',"NO FIT"], TOO_SLOW:['bad','TOO SLOW'] };
+const f = (x, d=1) => (x == null || !isFinite(x)) ? '∞'
+  : x.toLocaleString('en-US', { maximumFractionDigits: d });
+let selectedCard = null;
+
+function curModel() { return { totalParamsB:num('m_total'), activeParamsB:num('m_active'),
+  bytesPerWeight:num('m_bpw'), kvPerKGB:num('m_kv') }; }
+function curUsage() { return { hoursPerDay:num('u_hours'), usdPerKwh:num('u_kwh'), contextK:num('u_ctx'),
+  systemPromptK:num('u_sys'), hostedUsdPerM:num('u_hosted') }; }
+function cardOf(id, priceOverride) {
+  const c = CARDS.find(x => x.id === id);
+  return { vramGB:c.vramGB, bandwidthGBs:c.bandwidthGBs, tflops:c.tflops, tdpW:c.tdpW, idleW:c.idleW,
+           priceUSD: priceOverride != null ? priceOverride : c.priceUSD, resalePct:c.resalePct };
+}
+
+function render() {
+  const ov = { tps: $('u_tps').value !== '' ? num('u_tps') : undefined };
+  const model = curModel(), usage = curUsage();
+  for (const c of CARDS) {
+    const row = tbody.querySelector(`tr[data-card="${c.id}"]`);
+    const price = numVal(row.querySelector('.price').value, c.priceUSD);
+    const r = LLMEcon.evaluate(cardOf(c.id, price), model, usage, ov);
+    const [cls, label] = BADGE[r.verdict];
+    const vram = row.querySelector('.vram');
+    vram.textContent = f(r.fit.totalGB, 1) + ' / ' + c.vramGB + ' GB';
+    vram.className = 'vram' + (r.fit.ok ? '' : ' warn');
+    row.querySelector('.verdict').innerHTML = `<span class="badge ${cls}">${label}</span>`;
+    row.querySelector('.tps').textContent = f(r.tps, 1);
+    const tt = row.querySelector('.ttft');
+    tt.textContent = f(r.ttftMin, 1) + ' min';
+    tt.className = 'ttft' + (r.ttftMin > r.gates.ttftWarnMin ? ' warn' : '');
+    const be = row.querySelector('.be');
+    be.textContent = f(r.breakevenYears, 1) + ' y';
+    be.className = 'be' + (r.breakevenYears > r.gates.buyHorizonYears ? ' warn' : '');
+  }
+  if (selectedCard) safe(() => renderStrip(selectedCard));
+}
+
+function renderStrip(id) {
+  const c = CARDS.find(x => x.id === id);
+  const ov = { tps: $('u_tps').value !== '' ? num('u_tps') : undefined };
+  const price = numVal(tbody.querySelector(`.price[data-card="${id}"]`).value, c.priceUSD);
+  const r = LLMEcon.evaluate(cardOf(id, price), curModel(), curUsage(), ov);
+  const [cls, label] = BADGE[r.verdict];
+  $('strip').style.display = 'block';
+  $('strip').innerHTML = `
+    <div class="k">${c.name} — <span class="badge ${cls}">${label}</span></div>
+    <div class="row">
+      <div class="cell"><div class="k">VRAM used</div><div class="v">${f(r.fit.totalGB,1)} / ${c.vramGB} GB</div></div>
+      <div class="cell"><div class="k">Net hardware cost</div><div class="v">$${f(r.netHardwareUSD,0)}</div></div>
+      <div class="cell"><div class="k">Electricity / year</div><div class="v">$${f(r.elecAnnualUSD,0)}</div></div>
+      <div class="cell"><div class="k">Output / year</div><div class="v">${f(r.tokensPerYear/1e6,0)} M tok</div></div>
+      <div class="cell"><div class="k">Local $/M — y1</div><div class="v${r.localCostPerM.y1 < num('u_hosted') ? ' hl' : ''}">$${f(r.localCostPerM.y1,2)}</div></div>
+      <div class="cell"><div class="k">Local $/M — y3</div><div class="v${r.localCostPerM.y3 < num('u_hosted') ? ' hl' : ''}">$${f(r.localCostPerM.y3,2)}</div></div>
+      <div class="cell"><div class="k">Local $/M — y5</div><div class="v${r.localCostPerM.y5 < num('u_hosted') ? ' hl' : ''}">$${f(r.localCostPerM.y5,2)}</div></div>
+      <div class="cell"><div class="k">Hosted bar</div><div class="v">$${f(num('u_hosted'),2)}/M</div></div>
+    </div>
+    <div class="reasons">${r.reasons.length ? r.reasons.map(x => '• ' + x).join('<br>')
+      : 'All gates passed.'}
+    <br>${c.note}</div>`;
+}
+
+tbody.addEventListener('click', e => {
+  const row = e.target.closest('tr[data-card]');
+  if (!row || e.target.tagName === 'INPUT') return;   // price editing doesn't select
+  const id = row.dataset.card;
+  selectedCard = (selectedCard === id) ? null : id;   // single strip: re-click closes
+  document.querySelectorAll('#cards tbody tr.sel').forEach(t => t.classList.remove('sel'));
+  if (selectedCard) { row.classList.add('sel'); safe(() => renderStrip(selectedCard)); }
+  else $('strip').style.display = 'none';
+});
+document.querySelectorAll('.price').forEach(i => {
+  i.addEventListener('input', () => safe(render));
+  i.addEventListener('change', () => safe(render));
+});
+document.querySelectorAll('#m_total,#m_active,#m_bpw,#m_kv,#u_hours,#u_kwh,#u_ctx,#u_sys,#u_hosted,#u_tps')
+  .forEach(i => {
+    i.addEventListener('input', () => safe(render));   // number fields
+    i.addEventListener('change', () => safe(render));  // selects fire change, not always input
+  });
+
+applyModel();
+$('u_hours').value = 5; $('u_kwh').value = 0.12; $('u_ctx').value = 32;
+$('u_sys').value = 32; $('u_hosted').value = 0.47;
+const src = $('src_list');
+src.innerHTML = '<li><b>Verified (2026-09):</b></li>' +
+  VERIFIED.map(x => `<li style="margin-left:14px">${x}</li>`).join('') +
+  '<li><b>Unverified / estimates — edit the price field, not the math:</b></li>' +
+  USED.map(x => `<li style="margin-left:14px">${x}</li>`).join('');
+if (typeof LLMEcon === 'undefined') fail(new Error('calc.js not loaded'));
+else safe(render);
+</script>
+</body>
+</html>
