@@ -72,7 +72,7 @@
   // card: {vramGB, bandwidthGBs, tflops, tdpW, idleW, priceUSD, resalePct}
   // model:{totalParamsB, activeParamsB, bytesPerWeight, kvPerKGB}
   // usage:{hoursPerDay, usdPerKwh, contextK, systemPromptK, hostedUsdPerM}
-  // ov:   {tps?, decodeEffPct?, prefillEffPct?}  (tps = measured override)
+  // ov:   {tps?}  (measured t/s override; wins over the estimate)
   function evaluate(card, model, usage, ov) {
     ov = ov || {};
     var reasons = [];
@@ -81,9 +81,8 @@
     var fits = mem.totalGB <= card.vramGB;
 
     var tps = (ov.tps != null) ? ov.tps
-      : decodeTps(card.bandwidthGBs, model.activeParamsB, model.bytesPerWeight,
-                  (ov.decodeEffPct != null) ? ov.decodeEffPct : 50);
-    var ptps = prefillTps(card.tflops, model.activeParamsB, (ov.prefillEffPct != null) ? ov.prefillEffPct : 35);
+      : decodeTps(card.bandwidthGBs, model.activeParamsB, model.bytesPerWeight, 50);
+    var ptps = prefillTps(card.tflops, model.activeParamsB, 35);
     var promptK = usage.systemPromptK + usage.contextK;
     var ttft = ttftMinutes(promptK * 1000, ptps);
 
@@ -113,12 +112,9 @@
     return {
       verdict: verdict,
       reasons: reasons,
-      fit: { ok: fits, weightsGB: mem.weightsGB, kvGB: mem.kvGB, totalGB: mem.totalGB,
-             headroomGB: card.vramGB - mem.totalGB },
+      fit: { ok: fits, totalGB: mem.totalGB },
       tps: tps,
-      prefillTps: ptps,
       ttftMin: ttft,
-      promptK: promptK,
       netHardwareUSD: netHardware,
       elecAnnualUSD: elec,
       tokensPerYear: tokensPerYear(tps, usage.hoursPerDay),

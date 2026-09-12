@@ -3,8 +3,8 @@
 Single-page calculator: **should I buy this GPU/machine to serve local LLMs, or rent tokens?**
 
 Built from a local-vs-hosted economics discussion (session history) and a YouTube
-transcript on local AI hardware (Jan–Jun 2026 claims). v1 = one card at a time.
-v2 (not built) = side-by-side market table, prefill-as-money, live price feeds.
+transcript on local AI hardware (Jan–Jun 2026 claims). v2 (current UI) = side-by-side
+card table, one verdict per card. v3 (not built) = live market price feeds.
 
 ## Run
 
@@ -38,7 +38,7 @@ Gates run in series; failing one stops the economics:
 3. **Economics** — break-even = `price × (1 − resale%)` ÷ annual hosted-dollar value
    of the tokens you actually generate. **BUY** if ≤ 3 years, **RENT** otherwise.
 
-Verdicts: `BUY` / `RENT` / `DOESN'T FIT` / `TOO SLOW` + one-line reasons.
+Verdicts: `BUY` / `RENT` / `NO_FIT` / `TOO_SLOW` (shown as "NO FIT" / "TOO SLOW") + one-line reasons.
 
 ## Accuracy
 

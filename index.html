@@ -291,13 +291,10 @@ tbody.addEventListener('click', e => {
 });
 document.querySelectorAll('.price').forEach(i => {
   i.addEventListener('input', () => safe(render));
-  i.addEventListener('change', () => safe(render));
 });
+// input fires on number fields and selects alike (all modern browsers)
 document.querySelectorAll('#m_total,#m_active,#m_bpw,#m_kv,#u_hours,#u_kwh,#u_ctx,#u_sys,#u_hosted,#u_tps')
-  .forEach(i => {
-    i.addEventListener('input', () => safe(render));   // number fields
-    i.addEventListener('change', () => safe(render));  // selects fire change, not always input
-  });
+  .forEach(i => i.addEventListener('input', () => safe(render)));
 
 applyModel();
 $('u_hours').value = 32; $('u_kwh').value = 0.12; $('u_ctx').value = 32;
