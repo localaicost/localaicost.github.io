@@ -5,9 +5,9 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const C = require('../calc.js');
 
-// --- fit: 27B Q4 + 32K KV + 2 GB overhead = 16.2 + 8.192 + 2 = 26.392 GB
-let mem = C.fitGB(27, 0.6, 0.256, 32);
-assert.ok(Math.abs(mem.totalGB - 26.392) < 0.001, `fit total ${mem.totalGB}`);
+// --- fit: 27B Q4 + 32K KV (0.064 GB/1K, 16 full-attn layers) + 2 GB overhead = 16.2 + 2.048 + 2 = 20.248 GB
+let mem = C.fitGB(27, 0.6, 0.064, 32);
+assert.ok(Math.abs(mem.totalGB - 20.248) < 0.001, `fit total ${mem.totalGB}`);
 
 // --- decode: 1792 GB/s, 6B active @ 0.55 B, 50% eff → 1792/3.3*0.5 = 271.52
 assert.ok(Math.abs(C.decodeTps(1792, 6, 0.55, 50) - 271.515) < 0.01);
@@ -26,13 +26,16 @@ assert.ok(Math.abs(C.breakevenYears(9600, 271.515, 4, 0.47) - 14.31) < 0.02);
 
 // --- end-to-end verdicts
 const usage = { hoursPerDay: 4, usdPerKwh: 0.12, contextK: 32, systemPromptK: 32, hostedUsdPerM: 0.47 };
-const m27   = { totalParamsB: 27, activeParamsB: 27, bytesPerWeight: 0.6, kvPerKGB: 0.256 };
+const m27   = { totalParamsB: 27, activeParamsB: 27, bytesPerWeight: 0.6, kvPerKGB: 0.064 };
+const m70   = { totalParamsB: 70, activeParamsB: 70, bytesPerWeight: 0.6, kvPerKGB: 0.328 };
 const m14   = { totalParamsB: 14, activeParamsB: 14, bytesPerWeight: 0.6, kvPerKGB: 0.082 };
 const pro   = { vramGB: 96, bandwidthGBs: 1792, tflops: 460, tdpW: 600, idleW: 30, priceUSD: 16000, resalePct: 40 };
 const r3090 = { vramGB: 24, bandwidthGBs: 936, tflops: 142, tdpW: 350, idleW: 25, priceUSD: 946, resalePct: 40 };
 
-// NO_FIT: 27B Q4 needs 26.4 GB > 24
-assert.equal(C.evaluate(r3090, m27, usage).verdict, 'NO_FIT');
+// NO_FIT: 70B Q4 needs 42 GB > 24
+assert.equal(C.evaluate(r3090, m70, usage).verdict, 'NO_FIT');
+// FIT + RENT: 27B now fits the 3090 (16.2 + 2.05 + 2 = 20.2 GB) but 4 h/day @ $0.47/M → ~8 y break-even
+assert.equal(C.evaluate(r3090, m27, usage).verdict, 'RENT');
 // FIT + RENT: same on PRO 6000, but 16k card @ 4 h/day → 14+ y break-even
 let r = C.evaluate(pro, m27, usage);
 assert.equal(r.verdict, 'RENT');
@@ -43,7 +46,6 @@ assert.equal(r.verdict, 'BUY');
 assert.ok(r.breakevenYears < 3, r.breakevenYears);
 // TOO_SLOW (decode): 70B Q4 fits in the Spark's 128 GB, but 273 GB/s → 3.25 t/s < 5
 const spark = { vramGB: 128, bandwidthGBs: 273, tflops: 100, tdpW: 170, idleW: 12, priceUSD: 4699, resalePct: 30 };
-const m70 = { totalParamsB: 70, activeParamsB: 70, bytesPerWeight: 0.6, kvPerKGB: 0.328 };
 r = C.evaluate(spark, m70, usage);
 assert.equal(r.verdict, 'TOO_SLOW');
 assert.ok(r.reasons[0].includes('t/s'), r.reasons[0]);

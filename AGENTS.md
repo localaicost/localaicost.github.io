@@ -20,17 +20,18 @@ node test/calc.test.mjs     # the math — must pass before claiming anything wo
   All estimates, all constants (`GATES`, 50% decode / 35% prefill efficiency) live here.
 - `index.html` — UI (card table + model/usage controls + row detail strip), presets, wiring.
   Card specs are fixed in the `CARDS` data; only the per-row price input is user-editable.
-  Preset `note` strings are the data source-of-truth shown in the row detail strip;
-  keep notes honest about verified vs estimated.
+  Preset `note` strings are shown in the row detail strip — plain caveats only, no
+  dates/sources; the verification record lives in the README data table.
 - `test/calc.test.mjs` — pins formulas and gate order. New math → new assertion.
 - `README.md` — formulas, accuracy caveats, data status table (verified/unverified).
 
 ## Rules
 
 - Every market number (prices, resale %, TFLOPS) is **user-editable input with a sourced
-  or flagged-estimated default**. Never hardcode a "fact" in the math; it belongs in a
-  preset note or the README data table.
-- Verified claims: state source + date. Unverified/volatile claims: flag them, don't cite.
+  (in the README data table) or flagged-estimated default**. Never hardcode a "fact" in the
+  math; it belongs in the README data table. UI notes stay source-free — flag an estimate
+  in plain terms, cite the source and date only in the docs.
+- Verified claims in repo docs: state source + date. Unverified/volatile claims: flag them, don't cite.
 - Gate order is load-bearing: fit → decode t/s → TTFT → economics. Keep it that way;
   a card that doesn't fit is "DOESN'T FIT", not "expensive".
 - Live market price feeds are planned but unbuilt — don't scaffold for it. (The card
