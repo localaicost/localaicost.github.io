@@ -20,8 +20,8 @@ node test/calc.test.mjs     # the math — must pass before claiming anything wo
   All estimates, all constants (`GATES`, 50% decode / 35% prefill efficiency) live here.
 - `index.html` — UI (card table + model/usage controls + row detail strip), presets, wiring.
   Card specs are fixed in the `CARDS` data; only the per-row price input is user-editable.
-  Preset `note` strings are the data source-of-truth shown in row tooltips and the
-  "Accuracy & sources" block; keep notes honest about verified vs estimated.
+  Preset `note` strings are the data source-of-truth shown in the row detail strip;
+  keep notes honest about verified vs estimated.
 - `test/calc.test.mjs` — pins formulas and gate order. New math → new assertion.
 - `README.md` — formulas, accuracy caveats, data status table (verified/unverified).
 
