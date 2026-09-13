@@ -33,20 +33,15 @@
 
   // batch-1 decode is bandwidth-bound: every token re-reads active weights
   function decodeTps(bandwidthGBs, activeParamsB, bytesPerWeight, efficiencyPct) {
-    var gbPerToken = activeParamsB * bytesPerWeight;
-    if (gbPerToken <= 0) return 0;
-    return (bandwidthGBs / gbPerToken) * (efficiencyPct / 100);
+    return (bandwidthGBs / (activeParamsB * bytesPerWeight)) * (efficiencyPct / 100);
   }
 
   // prefill is compute-bound: ~2 FLOPs per active param per token
   function prefillTps(tflops, activeParamsB, efficiencyPct) {
-    var flopsPerToken = 2 * activeParamsB * 1e9;
-    if (flopsPerToken <= 0) return 0;
-    return (tflops * 1e12 * (efficiencyPct / 100)) / flopsPerToken;
+    return (tflops * 1e12 * (efficiencyPct / 100)) / (2 * activeParamsB * 1e9);
   }
 
   function ttftMinutes(promptTokens, prefillTps) {
-    if (prefillTps <= 0) return Infinity;
     return promptTokens / prefillTps / 60;
   }
 
@@ -78,15 +73,14 @@
   // card: {vramGB, bandwidthGBs, tflops, tdpW, idleW, priceUSD}
   // model:{totalParamsB, activeParamsB, bytesPerWeight, kvPerKGB}
   // usage:{hoursPerDay, usdPerKwh, contextK, systemPromptK, hostedUsdPerM}
-  // ov:   {tps?}  (measured t/s override; wins over the estimate)
-  function evaluate(card, model, usage, ov) {
-    ov = ov || {};
+  // tpsOverride: measured t/s; wins over the estimate
+  function evaluate(card, model, usage, tpsOverride) {
     var reasons = [];
 
     var mem = fitGB(model.totalParamsB, model.bytesPerWeight, model.kvPerKGB, usage.contextK);
     var fits = mem.totalGB <= card.vramGB;
 
-    var tps = (ov.tps != null) ? ov.tps
+    var tps = (tpsOverride != null) ? tpsOverride
       : decodeTps(card.bandwidthGBs, model.activeParamsB, model.bytesPerWeight, 50);
     var ptps = prefillTps(card.tflops, model.activeParamsB, 35);
     var promptK = usage.systemPromptK + usage.contextK;
@@ -118,7 +112,7 @@
     return {
       verdict: verdict,
       reasons: reasons,
-      fit: { ok: fits, totalGB: mem.totalGB },
+      totalGB: mem.totalGB,
       tps: tps,
       ttftMin: ttft,
       netHardwareUSD: netHardware,
@@ -129,8 +123,7 @@
         y5: localCostPerM(card.priceUSD, elec, tps, usage.hoursPerDay, 5),
         y8: localCostPerM(card.priceUSD, elec, tps, usage.hoursPerDay, 8)
       },
-      breakevenYears: be,
-      gates: GATES
+      breakevenYears: be
     };
   }
 

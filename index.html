@@ -18,10 +18,8 @@
              margin:0; padding:12px 14px; }
   legend { color:var(--acc); font-weight:600; padding:0 6px; font-size:13px;
            text-transform:uppercase; letter-spacing:.06em; }
-  label { display:flex; justify-content:space-between; gap:8px; align-items:center;
+  label, .specs > div { display:flex; justify-content:space-between; gap:8px; align-items:center;
           font-size:13px; color:var(--dim); margin-top:8px; }
-  .specs > div { display:flex; justify-content:space-between; gap:8px; align-items:center;
-                 font-size:13px; color:var(--dim); margin-top:8px; }
   .specs b { color:var(--fg); font-weight:600; }
   input, select { background:#0d1116; color:var(--fg); border:1px solid var(--line);
           border-radius:6px; padding:5px 8px; font:inherit; }
@@ -134,9 +132,8 @@
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
-const num = (id, d) => { const el = $(id); if (!el) throw new Error('missing element #' + id);
-  const v = parseFloat(el.value); return isNaN(v) ? d : v; };
 const numVal = (v, d) => { const x = parseFloat(v); return isNaN(x) ? d : x; };  // v = an element's .value
+const num = (id, d) => numVal($(id).value, d);
 
 // Fixed specs per card; only price is user-editable (row input).
 const CARDS = [
@@ -193,15 +190,13 @@ function safe(fn) { try { fn(); } catch (e) { fail(e); } }
 $('m_preset').innerHTML = MODELS.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
 const applyModel = () => {
   const d = MODELS.find(x => x.id === $('m_preset').value);
-  if (!d) return;
   $('m_total').textContent = d.totalParamsB;
   $('m_active').textContent = d.activeParamsB;
   $('m_kv').textContent = d.kvPerKGB;
   $('m_bpw').value = d.bytesPerWeight;  // preset quant; user can override after
-  if (d.hostedUsdPerM != null) $('u_hosted').value = d.hostedUsdPerM;  // each model has its own API price
-  $('m_note').textContent = d.note || '';
+  $('u_hosted').value = d.hostedUsdPerM;  // each model has its own API price
+  $('m_note').textContent = d.note;
 };
-$('m_preset').addEventListener('change', () => { applyModel(); safe(render); });
 
 // --- build card table rows once ---
 const tbody = document.querySelector('#cards tbody');
@@ -220,7 +215,9 @@ tbody.innerHTML = CARDS.map(c => `
 const BADGE = { BUY:['ok','BUY'], RENT:['rent','RENT'], NO_FIT:['bad',"NO FIT"], TOO_SLOW:['bad','TOO SLOW'] };
 const f = (x, d=1) => (x == null || !isFinite(x)) ? '∞'
   : x.toLocaleString('en-US', { maximumFractionDigits: d });
-let selectedCard = null;
+const cell = (k, v, hl) => `<div class="cell"><div class="k">${k}</div><div class="v${hl ? ' hl' : ''}">${v}</div></div>`;
+let selectedCard = CARDS[0].id;   // strip shows the top card until you pick another row
+const results = {};               // card id → last evaluate() result
 
 function curModel() {
   const d = MODELS.find(x => x.id === $('m_preset').value);
@@ -228,53 +225,43 @@ function curModel() {
            bytesPerWeight:num('m_bpw'), kvPerKGB:d.kvPerKGB }; }
 function curUsage() { return { hoursPerDay:Math.min(num('u_hours'), 168) / 7, usdPerKwh:num('u_kwh'), contextK:num('u_ctx'),
   systemPromptK:num('u_sys'), hostedUsdPerM:num('u_hosted') }; }
-function cardOf(id, priceOverride) {
-  const c = CARDS.find(x => x.id === id);
-  return { vramGB:c.vramGB, bandwidthGBs:c.bandwidthGBs, tflops:c.tflops, tdpW:c.tdpW, idleW:c.idleW,
-           priceUSD: priceOverride != null ? priceOverride : c.priceUSD };
-}
-
 function render() {
-  const ov = { tps: $('u_tps').value !== '' ? num('u_tps') : undefined };
-  const model = curModel(), usage = curUsage();
+  const tpsOverride = $('u_tps').value !== '' ? num('u_tps') : undefined;
+  const model = curModel(), usage = curUsage(), G = LLMEcon.GATES;
   for (const c of CARDS) {
     const row = tbody.querySelector(`tr[data-card="${c.id}"]`);
-    const price = numVal(row.querySelector('.price').value, c.priceUSD);
-    const r = LLMEcon.evaluate(cardOf(c.id, price), model, usage, ov);
+    const card = { ...c, priceUSD: numVal(row.querySelector('.price').value, c.priceUSD) };
+    const r = results[c.id] = LLMEcon.evaluate(card, model, usage, tpsOverride);
     const [cls, label] = BADGE[r.verdict];
     const vram = row.querySelector('.vram');
-    vram.textContent = f(r.fit.totalGB, 1) + ' / ' + c.vramGB + ' GB';
-    vram.className = 'vram' + (r.fit.ok ? '' : ' warn');
+    vram.textContent = f(r.totalGB) + ' / ' + c.vramGB + ' GB';
+    vram.className = 'vram' + (r.verdict === 'NO_FIT' ? ' warn' : '');
     row.querySelector('.verdict').innerHTML = `<span class="badge ${cls}">${label}</span>`;
-    row.querySelector('.tps').textContent = f(r.tps, 1);
+    row.querySelector('.tps').textContent = f(r.tps);
     const tt = row.querySelector('.ttft');
-    tt.textContent = f(r.ttftMin, 1) + ' min';
-    tt.className = 'ttft' + (r.ttftMin > r.gates.ttftWarnMin ? ' warn' : '');
+    tt.textContent = f(r.ttftMin) + ' min';
+    tt.className = 'ttft' + (r.ttftMin > G.ttftWarnMin ? ' warn' : '');
     const be = row.querySelector('.be');
-    be.textContent = f(r.breakevenYears, 1) + ' y';
-    be.className = 'be' + (r.breakevenYears > r.gates.buyHorizonYears ? ' warn' : '');
+    be.textContent = f(r.breakevenYears) + ' y';
+    be.className = 'be' + (r.breakevenYears > G.buyHorizonYears ? ' warn' : '');
   }
-  if (selectedCard) safe(() => renderStrip(selectedCard));
+  renderStrip(selectedCard);
 }
 
 function renderStrip(id) {
-  const c = CARDS.find(x => x.id === id);
-  const ov = { tps: $('u_tps').value !== '' ? num('u_tps') : undefined };
-  const price = numVal(tbody.querySelector(`.price[data-card="${id}"]`).value, c.priceUSD);
-  const r = LLMEcon.evaluate(cardOf(id, price), curModel(), curUsage(), ov);
+  const c = CARDS.find(x => x.id === id), r = results[id], hosted = num('u_hosted');
   const [cls, label] = BADGE[r.verdict];
   $('strip').style.display = 'block';
   $('strip').innerHTML = `
     <div class="k">${c.name} — <span class="badge ${cls}">${label}</span></div>
     <div class="row">
-      <div class="cell"><div class="k">VRAM used</div><div class="v">${f(r.fit.totalGB,1)} / ${c.vramGB} GB</div></div>
-      <div class="cell"><div class="k">Net hardware (3 y)</div><div class="v">$${f(r.netHardwareUSD,0)}</div></div>
-      <div class="cell"><div class="k">Electricity / year</div><div class="v">$${f(r.elecAnnualUSD,0)}</div></div>
-      <div class="cell"><div class="k">Output / year</div><div class="v">${f(r.tokensPerYear/1e6,0)} M tok</div></div>
-      <div class="cell"><div class="k">Local $/M — 3 y</div><div class="v${r.localCostPerM.y3 < num('u_hosted') ? ' hl' : ''}">$${f(r.localCostPerM.y3,2)}</div></div>
-      <div class="cell"><div class="k">Local $/M — 5 y</div><div class="v${r.localCostPerM.y5 < num('u_hosted') ? ' hl' : ''}">$${f(r.localCostPerM.y5,2)}</div></div>
-      <div class="cell"><div class="k">Local $/M — 8 y</div><div class="v${r.localCostPerM.y8 < num('u_hosted') ? ' hl' : ''}">$${f(r.localCostPerM.y8,2)}</div></div>
-      <div class="cell"><div class="k">Hosted bar</div><div class="v">$${f(num('u_hosted'),2)}/M</div></div>
+      ${cell('VRAM used', f(r.totalGB) + ' / ' + c.vramGB + ' GB')}
+      ${cell('Net hardware (3 y)', '$' + f(r.netHardwareUSD, 0))}
+      ${cell('Electricity / year', '$' + f(r.elecAnnualUSD, 0))}
+      ${cell('Output / year', f(r.tokensPerYear / 1e6, 0) + ' M tok')}
+      ${[3, 5, 8].map(y => cell('Local $/M — ' + y + ' y', '$' + f(r.localCostPerM['y' + y], 2),
+          r.localCostPerM['y' + y] < hosted)).join('')}
+      ${cell('Hosted bar', '$' + f(hosted, 2) + '/M')}
     </div>
     <div class="reasons">${r.reasons.length ? r.reasons.map(x => '• ' + x).join('<br>')
       : 'All gates passed.'}
@@ -285,26 +272,19 @@ tbody.addEventListener('click', e => {
   const row = e.target.closest('tr[data-card]');
   if (!row || e.target.tagName === 'INPUT' || row.dataset.card === selectedCard) return;
   selectedCard = row.dataset.card;
-  document.querySelectorAll('#cards tbody tr.sel').forEach(t => t.classList.remove('sel'));
+  tbody.querySelector('.sel')?.classList.remove('sel');
   row.classList.add('sel'); safe(() => renderStrip(selectedCard));
 });
-document.querySelectorAll('.price').forEach(i => {
-  i.addEventListener('input', () => safe(render));
-});
 // input fires on number fields and selects alike (all modern browsers)
-document.querySelectorAll('#m_bpw,#u_hours,#u_kwh,#u_ctx,#u_sys,#u_hosted,#u_tps')
-  .forEach(i => i.addEventListener('input', () => safe(render)));
+document.addEventListener('input', e => {
+  if (e.target.id === 'm_preset') applyModel();
+  safe(render);
+});
 
 applyModel();
-$('u_hours').value = 40; $('u_kwh').value = 0.12;
-$('u_sys').value = 32;
-if (typeof LLMEcon === 'undefined') fail(new Error('calc.js not loaded'));
-else {
-  safe(render);
-  selectedCard = CARDS[0].id;   // strip always shows the top card until you pick another row
-  tbody.querySelector(`tr[data-card="${selectedCard}"]`).classList.add('sel');
-  safe(() => renderStrip(selectedCard));
-}
+$('u_hours').value = 40; $('u_kwh').value = 0.12; $('u_sys').value = 32;
+tbody.querySelector(`tr[data-card="${selectedCard}"]`).classList.add('sel');
+safe(render);
 </script>
 </body>
 </html>

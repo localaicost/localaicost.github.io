@@ -64,7 +64,7 @@ r = C.evaluate({ ...pro, tflops: 2 }, m27, usage);
 assert.equal(r.verdict, 'TOO_SLOW');
 assert.ok(r.reasons[0].includes('prefill'), r.reasons[0]);
 // measured t/s override wins over the estimate
-r = C.evaluate(r3090, m14, { ...usage, hoursPerDay: 4 }, { tps: 20 });
+r = C.evaluate(r3090, m14, { ...usage, hoursPerDay: 4 }, 20);
 assert.ok(Math.abs(r.tps - 20) < 1e-9);
 
 console.log('calc.js: all checks passed');
