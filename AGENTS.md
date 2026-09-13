@@ -58,3 +58,7 @@ Made on purpose — don't reverse them silently.
 - **Power circuits are not modeled** — assume anyone running a multi-GPU box has 230 V.
 - **Working context and hosted $/M are prefilled per model preset** and stay
   user-editable; the earlier single $0.47 default misled for models like Qwen3.8-27B at $3/M.
+- **fp8 KV stays unmodeled; presets keep the model-default context** (user, 2026-09-13).
+  Checked all rows: an fp8 KV option would flip exactly one verdict — Qwen3.8-27B on the
+  5090 at 256K (35.0 → 26.6 GB). Small-card "runs fine" reports use below-window context,
+  which the user can set.
