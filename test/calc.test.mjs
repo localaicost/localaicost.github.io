@@ -8,6 +8,9 @@ const C = require('../calc.js');
 // --- fit: 27B Q4 + 32K KV (0.0655 GB/1K) + 2 GB overhead = 16.2 + 2.096 + 2 = 20.296 GB
 let mem = C.fitGB(27, 0.6, 0.0655, 32);
 assert.ok(Math.abs(mem.totalGB - 20.296) < 0.001, `fit total ${mem.totalGB}`);
+// --- fit, fp8 KV: scale halves the KV term = 16.2 + 1.048 + 2 = 19.248 GB
+mem = C.fitGB(27, 0.6, 0.0655, 32, 0.5);
+assert.ok(Math.abs(mem.totalGB - 19.248) <  0.001, `fit total fp8 ${mem.totalGB}`);
 
 // --- decode: 1792 GB/s, 6B active @ 0.55 bytes/weight, 50% eff → 1792/3.3*0.5 = 271.52
 assert.ok(Math.abs(C.decodeTps(1792, 6, 0.55, 50) - 271.515) < 0.01);
@@ -37,6 +40,7 @@ const m27   = { totalParamsB: 27, activeParamsB: 27, bytesPerWeight: 0.6, kvPerK
 const m70   = { totalParamsB: 70, activeParamsB: 70, bytesPerWeight: 0.6, kvPerKGB: 0.328 };
 const m14   = { totalParamsB: 14, activeParamsB: 14, bytesPerWeight: 0.6, kvPerKGB: 0.082 };
 const pro   = { vramGB: 96, bandwidthGBs: 1792, tflops: 504, tdpW: 600, idleW: 30, priceUSD: 16000 };
+const r5090 = { vramGB: 32, bandwidthGBs: 1792, tflops: 419, tdpW: 575, idleW: 30, priceUSD: 2400 };
 const r3090 = { vramGB: 24, bandwidthGBs: 936, tflops: 142, tdpW: 350, idleW: 25, priceUSD: 946 };
 const spark = { vramGB: 128, bandwidthGBs: 273, tflops: 119, tdpW: 140, idleW: 12, priceUSD: 6000 };
 
@@ -77,6 +81,11 @@ assert.ok(Math.abs(r.totalGB - 34.968) < 0.001, `fit total ${r.totalGB}`);
 // measured t/s override wins over the estimate
 r = C.evaluate(r3090, m14, usage, 20);
 assert.ok(Math.abs(r.tps - 20) < 1e-9);
+// fp8 KV flips 5090 × 27B at 256K context: 35.0 GB (NO_FIT) → 26.6 GB (fits)
+r = C.evaluate(r5090, { ...m27, maxContextK: 256 }, { ...usage, contextK: 256 });
+assert.equal(r.verdict, 'NO_FIT');
+r = C.evaluate(r5090, { ...m27, maxContextK: 256, kvScale: 0.5 }, { ...usage, contextK: 256 });
+assert.equal(r.verdict, 'RENT');
 
 // presets: cards.json × models.json parse and evaluate to finite numbers
 const cards = require('../cards.json'), models = require('../models.json');

@@ -48,7 +48,7 @@ Everything is an **estimate for gating**, not a performance prediction:
   efficiency and long-context attention cost all move it); it only feeds the TTFT gate.
 - TFLOPS is FP16-dense class; estimated specs are flagged in the card's note. Prices are street
   estimates.
-- KV/1K values assume bf16 KV. fp8 KV halves them — not modeled.
+- KV/1K values are bf16; the KV cache precision dropdown halves them for fp8.
 - Break-even horizon (3 y) is the "new" hardware tier: the card is still in use at 3 y,
   then resold. Hardware tiers by age: new 2–3 y, mid cycle 3–5 y, old 5–8 y.
 - Resale follows 25%/yr depreciation: 42% back after 3 y, 24% after 5 y, 10% after 8 y.
@@ -58,7 +58,8 @@ Everything is an **estimate for gating**, not a performance prediction:
   workloads skew the comparison.
 - Batch 1 only — no multi-user serving, no prefill/decode disaggregation.
 
-Editable in the UI: card price, quant, and the usage fields. Card specs and model parameters
+Editable in the UI: card price, quant, KV cache precision, and the usage fields.
+Card specs and model parameters
 are fixed preset data.
 
 ## Presets

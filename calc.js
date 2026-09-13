@@ -28,9 +28,10 @@
   }
 
   // weights + KV + overhead, for a context of `contextK` thousand tokens
-  function fitGB(totalParamsB, bytesPerWeight, kvPerKGB, contextK) {
+  // kvScale: KV-cache precision, 1 = bf16 (default), 0.5 = fp8
+  function fitGB(totalParamsB, bytesPerWeight, kvPerKGB, contextK, kvScale) {
     var weightsGB = totalParamsB * bytesPerWeight;
-    var kvGB = kvPerKGB * contextK;
+    var kvGB = kvPerKGB * (kvScale || 1) * contextK;
     return { weightsGB: weightsGB, kvGB: kvGB, totalGB: weightsGB + kvGB + GATES.overheadGB };
   }
 
@@ -73,7 +74,7 @@
   }
 
   // card: {vramGB, bandwidthGBs, tflops, tdpW, idleW, priceUSD}
-  // model:{totalParamsB, activeParamsB, bytesPerWeight, kvPerKGB, maxContextK?}
+  // model:{totalParamsB, activeParamsB, bytesPerWeight, kvPerKGB, kvScale?, maxContextK?}
   // usage:{hoursPerDay, usdPerKwh, contextK, systemPromptK, hostedUsdPerM}
   // tpsOverride: measured t/s; wins over the estimate
   function evaluate(card, model, usage, tpsOverride) {
@@ -82,7 +83,7 @@
     // system prompt = the harness's fixed prompt, cached ahead of the working context
     var askedK = usage.systemPromptK + usage.contextK;
     var promptK = (model.maxContextK != null) ? Math.min(askedK, model.maxContextK) : askedK;
-    var mem = fitGB(model.totalParamsB, model.bytesPerWeight, model.kvPerKGB, promptK);
+    var mem = fitGB(model.totalParamsB, model.bytesPerWeight, model.kvPerKGB, promptK, model.kvScale);
     var fits = mem.totalGB <= card.vramGB;
 
     var tps = (tpsOverride != null) ? tpsOverride

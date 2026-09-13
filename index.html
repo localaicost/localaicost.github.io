@@ -83,6 +83,11 @@
           <option value="0.47">Q3_K_M (~0.47)</option>
           <option value="0.4">Q2_K (~0.4)</option>
         </select></label>
+      <label>KV cache
+        <select id="m_kvq" class="inline">
+          <option value="1" selected>BF16 KV (1×)</option>
+          <option value="0.5">FP8 KV (0.5×)</option>
+        </select></label>
       <div class="note" id="m_note"></div>
     </fieldset>
 
@@ -152,7 +157,6 @@ const applyModel = () => {
   const d = curPreset();
   $('m_total').textContent = d.totalParamsB;
   $('m_active').textContent = d.activeParamsB;
-  $('m_kv').textContent = d.kvPerKGB;
   $('m_bpw').value = d.bytesPerWeight;  // preset quant; user can override after
   if (!$('u_ctx').querySelector(`option[value="${d.contextK}"]`)) $('u_ctx').add(new Option(d.contextK + 'K', d.contextK));
   $('u_ctx').value = d.contextK;  // model's default working context; user can change
@@ -187,13 +191,15 @@ let usage;                        // last curUsage(), shared with the strip
 function curModel() {
   const d = curPreset();
   return { totalParamsB:d.totalParamsB, activeParamsB:d.activeParamsB,
-           bytesPerWeight:num('m_bpw'), kvPerKGB:d.kvPerKGB, maxContextK:d.contextK }; }
+           bytesPerWeight:num('m_bpw'), kvPerKGB:d.kvPerKGB,
+           kvScale:parseFloat($('m_kvq').value), maxContextK:d.contextK }; }
 function curUsage() { return { hoursPerDay:Math.min(Math.max(num('u_hours'), 0), 168) / 7, usdPerKwh:Math.max(num('u_kwh'), 0), contextK:num('u_ctx'),
   systemPromptK:Math.max(num('u_sys'), 0), hostedUsdPerM:Math.max(num('u_hosted'), 0) }; }
 function render() {
   const tpsOverride = $('u_tps').value !== '' ? num('u_tps') : undefined;
   const model = curModel();
   usage = curUsage();
+  $('m_kv').textContent = model.kvPerKGB * model.kvScale;
   for (const c of CARDS) {
     const row = tbody.querySelector(`tr[data-card="${c.id}"]`);
     const card = { ...c, priceUSD: numVal(row.querySelector('.price').value, c.priceUSD) };
@@ -250,7 +256,7 @@ document.addEventListener('input', e => {
 const pct = x => Math.round(x * 100) + '%';
 const TIER = { 3: 'new', 5: 'mid cycle', 8: 'old' };
 $('accuracy_body').innerHTML = `
-  <p><b>Formulas</b> — fit: weights + KV (system prompt + working context, capped at the model window) + ${G.overheadGB} GB vs VRAM ·
+  <p><b>Formulas</b> — fit: weights + KV (system prompt + working context, capped at the model window) × KV-cache precision (FP8 = ½ of bf16) + ${G.overheadGB} GB vs VRAM ·
   decode t/s: bandwidth ÷ (active × bytes/weight) × ${G.decodeEffPct}% ·
   prefill: TFLOPS × ${G.prefillEffPct}% ÷ (2×active) · break-even: price×(1−${G.buyHorizonYears} y resale) ÷ (annual hosted cost
   (t/s × 3600 × h/week ÷ 7 × 365 × $/M ÷ 10⁶) − annual electricity)</p>

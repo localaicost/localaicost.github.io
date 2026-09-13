@@ -24,6 +24,7 @@ first: formulas, gate order, accuracy caveats and presets live there.
   software limits. No market commentary, nothing the table or footer already says.
 - Keep the measured-t/s override prominent (README → Accuracy, MoE caveat).
 - No build, no dependencies, no frameworks.
+- No decision dates in AGENTS.md — git history has them.
 - Live market price feeds are planned but unbuilt — don't scaffold for them.
 
 ## Decisions
@@ -34,9 +35,9 @@ Made on purpose — don't reverse them silently.
   request: cards are rows, model + usage are the variables, price is the only per-card input.
   No bandwidth/$ or memory/$ columns — the verdict, t/s, TTFT and break-even columns answer them.
 - **Prefill is a disqualifier, not a cost.** Slow decode or TTFT ⇒ `TOO_SLOW`, never a $ penalty.
-- **Failed-gate rows still show t/s, break-even and $/M** (user, 2026-09-13). The badge carries
+- **Failed-gate rows still show t/s, break-even and $/M**. The badge carries
   the verdict; don't blank the numbers.
-- **System prompt = the agent harness's prompt, not a model property** (user, 2026-09-13). It
+- **System prompt = the agent harness's prompt, not a model property**. It
   counts toward KV fit and TTFT; system prompt + working context is capped at the model window.
 - **Presets are current-gen (2026) only — check the HF repo `createdAt` before adding a
   model.** Removed for
@@ -45,20 +46,19 @@ Made on purpose — don't reverse them silently.
   GPT-OSS-120B is deliberately absent (user: tail of the 2026 leaderboard).
 - **Kimi has no 2026 local-tier LLM** — K3 / K2.7-Code (Jun 2026) are 1T-class. Don't add 2025
   Kimi small models "for coverage".
-- **Server cards are single cards.** Dropped Sep 2026: H100 SXM (the H100 PCIe variant covers
+- **Server cards are single cards.** Dropped: H100 SXM (the H100 PCIe variant covers
   it) and the 4×H200 2U composite (a full-box verdict doesn't parse against per-card usage).
   B200 / B300 have no PCIe variant; they stay as SXM for comparison.
-- **Resale = declining balance at 25%/yr, card held for the BUY horizon** (user, 2026-09-13).
-  Businesses don't resell hardware at 18 months (often never), so don't model a 1 y hold.
+- **Resale = declining balance at 25%/yr, card held for the BUY horizon**. Businesses don't
+  resell hardware at 18 months (often never), so don't model a 1 y hold.
   Replaced a uniform 40% framed as 1 y resale.
-- **Break-even nets electricity out of hosted savings** (user, 2026-09-13).
-- **No data-source table** (user, 2026-09-13). Specs don't change, prices go stale, git history
+- **Break-even nets electricity out of hosted savings**.
+- **No data-source table**. Specs don't change, prices go stale, git history
   dates a number. Don't re-add sources or check dates to README; the preset `note` flags
   estimated specs.
 - **Power circuits are not modeled** — assume anyone running a multi-GPU box has 230 V.
 - **Working context and hosted $/M are prefilled per model preset** and stay
   user-editable; the earlier single $0.47 default misled for models like Qwen3.8-27B at $3/M.
-- **fp8 KV stays unmodeled; presets keep the model-default context** (user, 2026-09-13).
-  Checked all rows: an fp8 KV option would flip exactly one verdict — Qwen3.8-27B on the
-  5090 at 256K (35.0 → 26.6 GB). Small-card "runs fine" reports use below-window context,
-  which the user can set.
+- **KV cache precision is a dropdown (bf16 default, fp8 = ½); presets keep the model-default
+  context**. First kept unmodeled, added on request — it flips exactly one
+  verdict: Qwen3.8-27B on the 5090 at 256K (35.0 → 26.6 GB).
