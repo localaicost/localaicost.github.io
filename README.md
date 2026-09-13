@@ -1,8 +1,7 @@
-# llm-card-econ — LocalAI Cost (localaicost.com)
+# LocalAI Cost (localaicost.com)
 
 Single-page calculator: **should I buy this GPU/machine to serve local LLMs, or rent tokens?**
-The UI lists every card with one verdict each for the chosen model and usage; click a row for
-its cost breakdown.
+The UI lists every card with one verdict each for the chosen model and usage.
 
 ## Run
 
