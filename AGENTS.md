@@ -1,8 +1,7 @@
 # AGENTS.md
 
 Single-page calculator: buy a GPU to serve local LLMs, or rent hosted tokens? Read `README.md`
-first: files, formulas, accuracy caveats, data sources and presets live there. This file holds
-the rules and the decisions behind them.
+first: files, formulas, gate order, accuracy caveats, data sources and presets live there.
 
 ## Rules
 
@@ -14,8 +13,6 @@ the rules and the decisions behind them.
   source + date if verified, flagged if estimated.
 - UI text stays source-free and date-free: flag an estimate in plain terms in the preset `note`;
   cite source and date only in the README.
-- Gate order is fit → decode t/s → TTFT → economics. A card that doesn't fit is "NO FIT", not
-  "expensive".
 - Keep the measured-t/s override prominent (README → Accuracy, MoE caveat).
 - No build, no dependencies, no frameworks.
 - Live market price feeds are planned but unbuilt — don't scaffold for them.
@@ -28,7 +25,8 @@ Made on purpose — don't reverse them silently.
   request: cards are rows, model + usage are the variables, price is the only per-card input.
   No bandwidth/$ or memory/$ columns — the verdict, t/s, TTFT and break-even columns answer them.
 - **Prefill is a disqualifier, not a cost.** Slow decode or TTFT ⇒ `TOO_SLOW`, never a $ penalty.
-- **Presets are current-gen (2026) only — check `createdAt` before adding a model.** Removed for
+- **Presets are current-gen (2026) only — check the HF repo `createdAt` before adding a
+  model.** Removed for
   age: Qwen3 30B-A3B / 235B-A22B, GLM-4.5-Air (2025-07), Kimi-Linear-48B (2025-10),
   DeepSeek-Coder-V2-Lite (2024-06); a first pass had added them by name instead of date.
   GPT-OSS-120B is deliberately absent (user: tail of the 2026 leaderboard).
