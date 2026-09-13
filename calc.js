@@ -14,9 +14,15 @@
     decodeTpsMin: 5,      // below this, interactive use is pointless
     ttftWarnMin: 5,       // first token noticeably painful
     ttftFailMin: 30,      // disqualify: nobody waits 30+ min to start
-    buyHorizonYears: 3,   // break-even beyond this → rent
-    overheadGB: 2         // CUDA context + activation margin
+    buyHorizonYears: 3,   // break-even beyond this → rent; also the resale point
+    overheadGB: 2,        // CUDA context + activation margin
+    depreciationPerYear: 0.25
   };
+
+  // fraction of purchase price recovered on resale after `years`
+  function resaleFraction(years) {
+    return Math.pow(1 - GATES.depreciationPerYear, years);
+  }
 
   // weights + KV + overhead, for a context of `contextK` thousand tokens
   function fitGB(totalParamsB, bytesPerWeight, kvPerKGB, contextK) {
@@ -54,22 +60,22 @@
     return tps * 3600 * hoursPerDay * 365;
   }
 
-  // amortized local cost per 1M output tokens over `years`
-  function localCostPerM(netHardwareUSD, elecAnnualUSD, tps, hoursPerDay, years) {
+  // local cost per 1M output tokens, holding the card `years` then reselling it
+  function localCostPerM(priceUSD, elecAnnualUSD, tps, hoursPerDay, years) {
     var tokens = tokensPerYear(tps, hoursPerDay) * years;
     if (tokens <= 0) return Infinity;
-    return (netHardwareUSD + elecAnnualUSD * years) / (tokens / 1e6);
+    return (priceUSD * (1 - resaleFraction(years)) + elecAnnualUSD * years) / (tokens / 1e6);
   }
 
-  // years until the card's net cost is covered by tokens it generates
-  // instead of paying `hostedUsdPerM` for the same tokens
-  function breakevenYears(netHardwareUSD, tps, hoursPerDay, hostedUsdPerM) {
-    var savedPerYear = (tokensPerYear(tps, hoursPerDay) / 1e6) * hostedUsdPerM;
+  // years until the card's net cost is covered by what its tokens would cost
+  // hosted, minus the electricity to generate them
+  function breakevenYears(netHardwareUSD, elecAnnualUSD, tps, hoursPerDay, hostedUsdPerM) {
+    var savedPerYear = (tokensPerYear(tps, hoursPerDay) / 1e6) * hostedUsdPerM - elecAnnualUSD;
     if (savedPerYear <= 0) return Infinity;
     return netHardwareUSD / savedPerYear;
   }
 
-  // card: {vramGB, bandwidthGBs, tflops, tdpW, idleW, priceUSD, resalePct}
+  // card: {vramGB, bandwidthGBs, tflops, tdpW, idleW, priceUSD}
   // model:{totalParamsB, activeParamsB, bytesPerWeight, kvPerKGB}
   // usage:{hoursPerDay, usdPerKwh, contextK, systemPromptK, hostedUsdPerM}
   // ov:   {tps?}  (measured t/s override; wins over the estimate)
@@ -86,9 +92,9 @@
     var promptK = usage.systemPromptK + usage.contextK;
     var ttft = ttftMinutes(promptK * 1000, ptps);
 
-    var netHardware = card.priceUSD * (1 - card.resalePct / 100);
+    var netHardware = card.priceUSD * (1 - resaleFraction(GATES.buyHorizonYears));
     var elec = annualElecUSD(card.idleW, card.tdpW, usage.hoursPerDay, usage.usdPerKwh);
-    var be = breakevenYears(netHardware, tps, usage.hoursPerDay, usage.hostedUsdPerM);
+    var be = breakevenYears(netHardware, elec, tps, usage.hoursPerDay, usage.hostedUsdPerM);
 
     var verdict;
     if (!fits) {
@@ -106,7 +112,7 @@
       if (ttft > GATES.ttftWarnMin)
         reasons.push('Slow first token: ~' + ttft.toFixed(1) + ' min for a ' + promptK + 'K prompt.');
       if (usage.hoursPerDay <= 0)
-        reasons.push('0 h/day of usage — nothing to amortize against.');
+        reasons.push('No usage hours — nothing to amortize against.');
     }
 
     return {
@@ -119,9 +125,9 @@
       elecAnnualUSD: elec,
       tokensPerYear: tokensPerYear(tps, usage.hoursPerDay),
       localCostPerM: {
-        y1: localCostPerM(netHardware, elec, tps, usage.hoursPerDay, 1),
-        y3: localCostPerM(netHardware, elec, tps, usage.hoursPerDay, 3),
-        y5: localCostPerM(netHardware, elec, tps, usage.hoursPerDay, 5)
+        y3: localCostPerM(card.priceUSD, elec, tps, usage.hoursPerDay, 3),
+        y5: localCostPerM(card.priceUSD, elec, tps, usage.hoursPerDay, 5),
+        y8: localCostPerM(card.priceUSD, elec, tps, usage.hoursPerDay, 8)
       },
       breakevenYears: be,
       gates: GATES
@@ -130,6 +136,7 @@
 
   return {
     GATES: GATES,
+    resaleFraction: resaleFraction,
     fitGB: fitGB,
     decodeTps: decodeTps,
     prefillTps: prefillTps,
