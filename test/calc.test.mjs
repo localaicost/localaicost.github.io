@@ -74,7 +74,6 @@ assert.deepEqual(r.reasons, ['No usage hours — nothing to amortize against.'])
 // prompt over the model window: 32K system + 256K context capped at 256K → 16.2 + 16.77 + 2 GB
 r = C.evaluate(pro, { ...m27, maxContextK: 256 }, { ...usage, contextK: 256 });
 assert.ok(Math.abs(r.totalGB - 34.968) < 0.001, `fit total ${r.totalGB}`);
-assert.ok(r.reasons.at(-1).includes('capped'), r.reasons.join(' | '));
 // measured t/s override wins over the estimate
 r = C.evaluate(r3090, m14, usage, 20);
 assert.ok(Math.abs(r.tps - 20) < 1e-9);

@@ -114,8 +114,6 @@
       if (ttft > GATES.ttftWarnMin)
         reasons.push('Slow first token: ~' + ttft.toFixed(1) + ' min for a ' + promptK + 'K prompt.');
     }
-    if (promptK < askedK)
-      reasons.push('System prompt + working context (' + askedK + 'K) capped at the model\'s ' + promptK + 'K window.');
 
     GATES.holdYears.forEach(function (y) {
       costPerM[y] = localCostPerM(card.priceUSD, elec, tps, usage.hoursPerDay, y);
