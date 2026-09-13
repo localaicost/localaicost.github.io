@@ -52,10 +52,9 @@ assert.ok(Math.abs(C.localCostPerM(16000, 131.4, 56.064e6, 3) - 57.340) < 0.001)
 
 // --- end-to-end verdicts
 // loaded hosted rate at 32K context, 512-token response + 2000 tool tokens, 5% cache misses:
-// cached rate 0.5×(1 − 0.9×0.95) = 0.0725 → 3 + (0.5×2512 + 0.0725×13488)/512 = 7.363;
-// 300 turns/day → 56.064M tok/y
+// cached rate 0.5×(1 − 0.9×0.95) = 0.0725 → 3 + (0.5×2512 + 0.0725×13488)/512 = 7.363
 const usage = { hoursPerDay: 4, usdPerKwh: 0.12, contextK: 32, hostedUsdPerM: 3,
-  hostedInUsdPerM: 0.5, hostedCacheDiscPct: 90, cacheMissPct: 5, turnsPerDay: 300,
+  hostedInUsdPerM: 0.5, hostedCacheDiscPct: 90, cacheMissPct: 5,
   outTokensPerTurn: 512, toolTokensPerTurn: 2000 };
 const m27   = { totalParamsB: 27, activeParamsB: 27, bytesPerWeight: 0.6, kvPerKGB: 0.0655 };
 const m70   = { totalParamsB: 70, activeParamsB: 70, bytesPerWeight: 0.6, kvPerKGB: 0.328 };
@@ -68,103 +67,66 @@ const spark = { vramGB: 128, bandwidthGBs: 273, tflops: 119, tdpW: 140, idleW: 1
 // NO_FIT before decode: 70B Q4 needs 54.5 GB > 24; 50 GB/s would also fail decode (0.6 t/s)
 let r = C.evaluate({ ...r3090, bandwidthGBs: 50 }, m70, usage);
 assert.equal(r.verdict, 'NO_FIT');
-assert.equal(r.sessionsUsed, 0, `sessionsUsed ${r.sessionsUsed}`);
-// FIT + BUY: 27B fits the 3090 (16.2 + KV 32K × 0.0655 = 2.10 + 2 = 20.3 GB);
-// busy 300 × (512/28.9 t/s + 2512/920 t/s) = 1.70 h/day, not the 4 usage hours → $50.54/y
-// electricity; $412.8/y hosted against net $547 → break-even ~1.51 y
+assert.equal(r.agents, 0, `agents ${r.agents}`);
+// FIT + BUY, 27B on the 3090 at 32K, 4 h/day:
+// one agent: 2512 tok ÷ 920.4 t/s prefill + 512 ÷ 28.89 t/s decode = 20.45 s/turn → 704 turns/day
+// = 4,929/week → 131.6 M tok/y × $7.363/M = $968.8/y hosted − $83.22/y electricity (TDP all
+// 4 h) against net $547 → break-even 0.62 y
+// VRAM holds 2 sessions, both ≥ 10 t/s: 28.89 × (16.2 + 1.048) ÷ (16.2 + 2 × 1.048) = 27.23 t/s;
+// 2512 ÷ 920.4 + 512 ÷ (2 × 27.23) = 12.13 s/turn → 8,310/week → break-even 0.35 y
 r = C.evaluate(r3090, m27, usage);
 assert.equal(r.verdict, 'BUY');
-assert.ok(Math.abs(r.totalGB - 20.296) < 0.001, `fit total ${r.totalGB}`);
-assert.ok(Math.abs(r.elecAnnualUSD - 50.54) < 0.01, `electricity ${r.elecAnnualUSD}`);
-assert.ok(Math.abs(r.breakevenYears - 1.510) < 0.001, `breakeven ${r.breakevenYears}`);
-// parallel off by default → one session used; VRAM holds 2
 assert.equal(r.sessions, 2, `sessions ${r.sessions}`);
-assert.equal(r.sessionsUsed, 1, `sessionsUsed ${r.sessionsUsed}`);
-// hosted spend follows turns, not card speed: 5090 decodes ~2× the 3090, same output/year
-assert.equal(C.evaluate(r5090, m27, usage).outTokensPerYear, r.outTokensPerYear);
-// FIT + RENT: 100 turns/day → ~5.3 y
-r = C.evaluate(r3090, m27, { ...usage, turnsPerDay: 100 });
-assert.equal(r.verdict, 'RENT');
-assert.ok(Math.abs(r.breakevenYears - 5.298) < 0.001, `breakeven ${r.breakevenYears}`);
-assert.ok(r.reasons[0].includes('Break-even'), r.reasons[0]);
-// 20 turns/day: saved < electricity → never breaks even
-r = C.evaluate(r3090, m27, { ...usage, turnsPerDay: 20 });
-assert.equal(r.verdict, 'RENT');
-assert.equal(r.breakevenYears, Infinity);
-assert.ok(r.reasons[0].includes('Never breaks even'), r.reasons[0]);
-// FIT + RENT: same on PRO 6000, 16k card → 10+ y break-even
-r = C.evaluate(pro, m27, usage);
-assert.equal(r.verdict, 'RENT');
-assert.ok(r.breakevenYears > 10, r.breakevenYears);
-assert.ok(r.reasons[0].includes('Break-even'), r.reasons[0]);
-// TOO_SLOW, capacity: parallel off, the 1.7 busy h/day above don't fit in 1 usage h/day
-r = C.evaluate(r3090, m27, { ...usage, hoursPerDay: 1 });
-assert.equal(r.verdict, 'TOO_SLOW');
-assert.ok(r.reasons[0].includes('1.7 h/day'), r.reasons[0]);
-// parallel on, 1.1 h/day: per-session decode 28.89 × (16.2 + 1.048) ÷ (16.2 + 2 × 1.048) = 27.23 t/s;
-// 153.6K tok ÷ (2 × 27.23) + prefill 819 s = 1.01 h → fits; VRAM fills to 2 sessions
-r = C.evaluate(r3090, m27, { ...usage, hoursPerDay: 1.1, parallel: true });
-assert.equal(r.verdict, 'BUY');
-assert.equal(r.sessionsUsed, 2, `sessionsUsed ${r.sessionsUsed}`);
-assert.ok(Math.abs(r.tps - 27.234) < 0.001, `tps ${r.tps}`);
+assert.equal(r.agents, 2, `agents ${r.agents}`);
+assert.ok(Math.abs(r.tpsMulti - 27.234) < 0.001, `tpsMulti ${r.tpsMulti}`);
 assert.ok(Math.abs(r.totalGB - (16.2 + 2 * 2.096 + 2)) < 0.001, `fit total ${r.totalGB}`);
-// 0.7 h/day: 4 sessions would fit the hours, VRAM holds 2 (1.01 h) → NO_FIT
-r = C.evaluate(r3090, m27, { ...usage, hoursPerDay: 0.7, parallel: true });
-assert.equal(r.verdict, 'NO_FIT');
-assert.ok(r.reasons[0].includes('2 sessions VRAM fits') && r.reasons[0].includes('takes ~1.0 h/day'), r.reasons[0]);
-// 0.3 h/day leaves 261 s after prefill: 588 t/s needed, above the aggregate ceiling
-// 28.89 × 17.248 ÷ 1.048 = 475 t/s at any session count → TOO_SLOW, not NO_FIT
-r = C.evaluate(r3090, m27, { ...usage, hoursPerDay: 0.3, parallel: true });
-assert.equal(r.verdict, 'TOO_SLOW');
-assert.ok(r.reasons[0].includes('at 2 sessions'), r.reasons[0]);
-// measured 6 t/s, 2 h/day: 5 sessions would fit the hours, but at
-// 6 × 17.248 ÷ (16.2 + 5 × 1.048) = 4.83 t/s per session → TOO_SLOW, not NO_FIT
-r = C.evaluate(r3090, m27, { ...usage, hoursPerDay: 2, parallel: true }, 6);
-assert.equal(r.verdict, 'TOO_SLOW');
-assert.ok(r.reasons[0].includes('at 2 sessions'), r.reasons[0]);
-// prefill wall ≥ usage hours → TOO_SLOW at any concurrency (compute-bound), one session shown:
-// 14B on a 2-TFLOPS 3090, 300 turns × 2512 fresh tok ÷ 25 t/s = 8.4 h/day prefill
-r = C.evaluate({ ...r3090, tflops: 2 }, m14, { ...usage, hoursPerDay: 1, parallel: true });
-assert.equal(r.verdict, 'TOO_SLOW');
-assert.ok(r.reasons[0].includes('Prefill alone'), r.reasons[0]);
-assert.equal(r.sessionsUsed, 1, `sessionsUsed ${r.sessionsUsed}`);
-// batched KV reads fail the decode gate: 27B on the Spark at 256K, 900 turns/day in 6 h fit at
-// no S ≤ 6 (VRAM), so sessions used stops at 6;
-// 8.43 × (16.2 + 8.38) ÷ (16.2 + 6 × 8.38) = 3.11 t/s per session < 10
-r = C.evaluate(spark, { ...m27, maxContextK: 256 }, { ...usage, contextK: 256, turnsPerDay: 900,
-  hoursPerDay: 6, parallel: true });
-assert.equal(r.verdict, 'TOO_SLOW');
-assert.equal(r.sessionsUsed, 6, `sessionsUsed ${r.sessionsUsed}`);
-assert.ok(Math.abs(r.tps - 3.115) < 0.001, `tps ${r.tps}`);
-assert.ok(r.reasons[0].includes('per session at 6 sessions'), r.reasons[0]);
-// no usage hours with turns to serve → capacity fails with its own reason
-r = C.evaluate(r3090, m14, { ...usage, hoursPerDay: 0 });
-assert.deepEqual(r.reasons, ['No usage hours to serve the turns in.']);
+assert.ok(Math.abs(r.turnsPerWeek - 4928.5) < 0.5, `turns/week ${r.turnsPerWeek}`);
+assert.ok(Math.abs(r.turnsPerWeekMulti - 8310.4) < 0.5, `turns/week multi ${r.turnsPerWeekMulti}`);
+assert.ok(Math.abs(r.elecAnnualUSD - 83.22) < 0.01, `electricity ${r.elecAnnualUSD}`);
+assert.ok(Math.abs(r.breakevenYears1 - 0.618) < 0.001, `breakeven 1 ${r.breakevenYears1}`);
+assert.ok(Math.abs(r.breakevenYears - 0.353) < 0.001, `breakeven ${r.breakevenYears}`);
+// hosted spend follows card capacity: the 5090 decodes ~2× the 3090 → more output/year
+assert.ok(C.evaluate(r5090, m27, usage).outTokensPerYear > r.outTokensPerYear);
+// the 10 t/s floor caps agents below VRAM: 14B on the Spark at 32K fits 44 sessions, but
+// 16.25 × (8.4 + 1.312) ÷ (8.4 + S × 1.312) ≥ 10 → S ≤ 5.6 → 5 agents at 10.55 t/s
+r = C.evaluate(spark, m14, usage);
+assert.equal(r.sessions, 44, `sessions ${r.sessions}`);
+assert.equal(r.agents, 5, `agents ${r.agents}`);
+assert.ok(Math.abs(r.tpsMulti - 10.549) < 0.001, `tpsMulti ${r.tpsMulti}`);
+// verdict follows multi-agent break-even: PRO 6000 × 27B at 0.5 h/day, 37 agents → 6.0 y RENT;
+// one agent alone would take 45.6 y
+r = C.evaluate(pro, m27, { ...usage, hoursPerDay: 0.5 });
+assert.equal(r.verdict, 'RENT');
+assert.equal(r.agents, 37, `agents ${r.agents}`);
+assert.ok(Math.abs(r.breakevenYears - 6.018) < 0.001, `breakeven ${r.breakevenYears}`);
+assert.ok(Math.abs(r.breakevenYears1 - 45.563) < 0.001, `breakeven 1 ${r.breakevenYears1}`);
+assert.ok(r.reasons[0].includes('at 37 agents'), r.reasons[0]);
+// a 21 GB 3090 holds one 27B session → singular "agent"
+r = C.evaluate({ ...r3090, vramGB: 21 }, m27, { ...usage, hoursPerDay: 0.5 });
+assert.ok(r.reasons[0].includes('at 1 agent,'), r.reasons[0]);
+// 0.1 h/day: one agent never covers electricity; 2 agents take ~41.6 y
+r = C.evaluate(r3090, m27, { ...usage, hoursPerDay: 0.1 });
+assert.equal(r.verdict, 'RENT');
+assert.equal(r.breakevenYears1, Infinity);
+assert.ok(r.reasons[0].includes('Break-even ~41.6 y'), r.reasons[0]);
+// no usage hours → one reason, not "never breaks even" on top
+r = C.evaluate(r3090, m27, { ...usage, hoursPerDay: 0 });
+assert.deepEqual(r.reasons, ['No usage hours — nothing to amortize against.']);
 // TOO_SLOW, decode before TTFT: 70B Q4 fits the Spark's 128 GB, 273 GB/s → 3.25 t/s < 10;
 // 2 TFLOPS would also fail TTFT (~213 min)
 r = C.evaluate({ ...spark, tflops: 2 }, m70, usage);
 assert.equal(r.verdict, 'TOO_SLOW');
 assert.ok(r.reasons[0].includes('t/s'), r.reasons[0]);
-// TOO_SLOW, TTFT before capacity: 14B on a 2-TFLOPS 3090, 64K prefill ~43 min; 1 h/day would
-// also fail capacity
-r = C.evaluate({ ...r3090, tflops: 2 }, m14, { ...usage, hoursPerDay: 1, contextK: 64 });
+// below the floor at one agent → one agent shown
+assert.equal(r.agents, 1, `agents ${r.agents}`);
+// TOO_SLOW, TTFT: 14B on a 2-TFLOPS 3090, 64K prefill ~43 min
+r = C.evaluate({ ...r3090, tflops: 2 }, m14, { ...usage, contextK: 64 });
 assert.equal(r.verdict, 'TOO_SLOW');
 assert.ok(r.reasons[0].includes('prefill'), r.reasons[0]);
-// no turns → one reason, not "never breaks even" on top
-r = C.evaluate(r3090, m14, { ...usage, turnsPerDay: 0 });
-assert.deepEqual(r.reasons, ['No turns — nothing to amortize against.']);
-// sessions-used busy math: 600 turns/day on the PRO 6000, parallel, 1 h/day: 2 of 37 sessions at
-// 52.14 t/s each → 307.2K tok ÷ 104.3 t/s + prefill 461 s = 0.95 h → $55.2/y electricity;
-// 112.128 M tok/y × $7.363/M = $825.6/y hosted against net $9250 → break-even ~12.01 y = RENT
-r = C.evaluate(pro, m27, { ...usage, turnsPerDay: 600, hoursPerDay: 1, parallel: true });
-assert.equal(r.verdict, 'RENT');
-assert.equal(r.sessions, 37, `sessions ${r.sessions}`);
-assert.equal(r.sessionsUsed, 2, `sessionsUsed ${r.sessionsUsed}`);
-assert.ok(Math.abs(r.elecAnnualUSD - 55.17) < 0.01, `electricity ${r.elecAnnualUSD}`);
-assert.ok(Math.abs(r.breakevenYears - 12.01) < 0.01, `breakeven ${r.breakevenYears}`);
-// context over the model max: 512K requested, capped at 256K → 16.2 + 16.77 + 2 GB
+// context over the model max: 512K requested, capped at 256K → 4 sessions of 16.77 GB KV
 r = C.evaluate(pro, { ...m27, maxContextK: 256 }, { ...usage, contextK: 512 });
-assert.ok(Math.abs(r.totalGB - 34.968) < 0.001, `fit total ${r.totalGB}`);
+assert.equal(r.sessions, 4, `sessions ${r.sessions}`);
+assert.ok(Math.abs(r.totalGB - (16.2 + r.agents * 16.768 + 2)) < 0.001, `fit total ${r.totalGB}`);
 // measured t/s override wins over the estimate
 r = C.evaluate(r3090, m14, usage, 20);
 assert.ok(Math.abs(r.tps - 20) < 1e-9);
@@ -172,8 +134,7 @@ assert.ok(Math.abs(r.tps - 20) < 1e-9);
 r = C.evaluate(r3090, m14, usage, 9);
 assert.equal(r.verdict, 'TOO_SLOW');
 assert.ok(r.reasons[0].includes('below the 10 t/s'), r.reasons[0]);
-// fp8 KV flips 5090 × 27B at 256K context: 35.0 GB (NO_FIT) → 26.6 GB (fits, and the loaded
-// $23.22/M at 256K breaks even in ~1.1 y → BUY)
+// fp8 KV flips 5090 × 27B at 256K context: 35.0 GB (NO_FIT) → 26.6 GB (fits → BUY)
 r = C.evaluate(r5090, { ...m27, maxContextK: 256 }, { ...usage, contextK: 256 });
 assert.equal(r.verdict, 'NO_FIT');
 r = C.evaluate(r5090, { ...m27, maxContextK: 256, kvScale: 0.5 }, { ...usage, contextK: 256 });
@@ -187,12 +148,16 @@ for (const m of models) {
   assert.ok(m.hostedUsdPerM > 0 && m.hostedInUsdPerM > 0 && m.hostedCacheDiscPct >= 0,
     `${m.id}: hosted out/in rates and cache discount`);
 }
-const uiUsage = { hoursPerDay: 40 / 7, usdPerKwh: 0.12, cacheMissPct: 1, turnsPerDay: 6500 / 7,
+const uiUsage = { hoursPerDay: 40 / 7, usdPerKwh: 0.12, cacheMissPct: 1,
   outTokensPerTurn: 650, toolTokensPerTurn: 1350 };
-for (const m of models) for (const c of cards) for (const parallel of [false, true]) {
+for (const m of models) for (const c of cards) {
   r = C.evaluate(c, m, { ...uiUsage, contextK: m.contextK, hostedUsdPerM: m.hostedUsdPerM,
-    hostedInUsdPerM: m.hostedInUsdPerM, hostedCacheDiscPct: m.hostedCacheDiscPct, parallel });
-  for (const k of ['totalGB', 'tps', 'ttftMin', 'netHardwareUSD', 'elecAnnualUSD', 'hostedUsdPerM', 'sessions', 'sessionsUsed'])
+    hostedInUsdPerM: m.hostedInUsdPerM, hostedCacheDiscPct: m.hostedCacheDiscPct });
+  assert.ok(r.agents <= r.sessions && r.turnsPerWeekMulti >= r.turnsPerWeek - 1e-6, `${c.id} × ${m.id}: agents`);
+  assert.ok(r.tps < C.GATES.decodeTpsMin || r.agents === 0 || r.tpsMulti >= C.GATES.decodeTpsMin - 1e-9,
+    `${c.id} × ${m.id}: tpsMulti ${r.tpsMulti}`);
+  for (const k of ['totalGB', 'tps', 'tpsMulti', 'ttftMin', 'turnsPerWeek', 'turnsPerWeekMulti', 'netHardwareUSD',
+    'elecAnnualUSD', 'hostedUsdPerM', 'sessions', 'agents'])
     assert.ok(Number.isFinite(r[k]), `${c.id} × ${m.id}: ${k} = ${r[k]}`);
 }
 

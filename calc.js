@@ -82,8 +82,7 @@
   // card: {vramGB, bandwidthGBs, tflops, tdpW, idleW, priceUSD}
   // model:{totalParamsB, activeParamsB, bytesPerWeight, kvPerKGB, kvScale?, maxContextK?}
   // usage:{hoursPerDay, usdPerKwh, contextK, hostedUsdPerM, hostedInUsdPerM,
-  //        hostedCacheDiscPct, cacheMissPct, turnsPerDay, outTokensPerTurn, toolTokensPerTurn,
-  //        parallel? (default false)}
+  //        hostedCacheDiscPct, cacheMissPct, outTokensPerTurn, toolTokensPerTurn}
   // tpsOverride: measured t/s; wins over the estimate
   function evaluate(card, model, usage, tpsOverride) {
     var reasons = [], costPerM = {};
@@ -92,52 +91,40 @@
     var promptK = (model.maxContextK != null) ? Math.min(usage.contextK, model.maxContextK) : usage.contextK;
     var mem = fitGB(model.totalParamsB, model.bytesPerWeight, model.kvPerKGB, promptK, model.kvScale);
     var fits = mem.totalGB <= card.vramGB;
-    // concurrent sessions the VRAM holds: weights + one-time overhead, the rest filled
-    // with per-session KV (the 2 GB is engine-level, not per session)
+    // concurrent sessions the VRAM holds (the 2 GB overhead is engine-level, not per session)
     var sessions = fits && mem.kvGB > 0
       ? Math.floor((card.vramGB - mem.weightsGB - GATES.overheadGB) / mem.kvGB + 1e-9)
       : (fits ? 1 : 0);
 
-    var tps1 = (tpsOverride != null) ? tpsOverride
+    var tps = (tpsOverride != null) ? tpsOverride
       : decodeTps(card.bandwidthGBs, model.activeParamsB, model.bytesPerWeight, GATES.decodeEffPct);
     // per-session decode t/s at batch s: each step reads the active weights once plus every
     // session's KV at the average context (C/2); the batch-1 figure stands for one session's read
     var activeGB = model.activeParamsB * model.bytesPerWeight, kvAvgGB = mem.kvGB / 2;
-    function tpsAt(s) { return tps1 * (activeGB + kvAvgGB) / (activeGB + s * kvAvgGB); }
+    function tpsAt(s) { return tps * (activeGB + kvAvgGB) / (activeGB + s * kvAvgGB); }
+    // most agents whose per-session decode stays at the floor: tpsAt(S) ≥ floor solved for S
+    var agents = kvAvgGB > 0
+      ? Math.min(sessions, Math.floor((tps * (activeGB + kvAvgGB) / GATES.decodeTpsMin - activeGB) / kvAvgGB + 1e-9))
+      : sessions;
+    agents = Math.max(agents, Math.min(sessions, 1));
+    var tpsMulti = agents > 0 ? tpsAt(agents) : tps;
     var ptps = prefillTps(card.tflops, model.activeParamsB, GATES.prefillEffPct);
     var ttft = ttftMinutes(promptK * 1000, ptps);
 
     var netHardware = card.priceUSD * (1 - resaleFraction(GATES.buyHorizonYears));
     var hostedPerM = hostedUsdPerM(usage.hostedUsdPerM, usage.hostedInUsdPerM, usage.hostedCacheDiscPct,
       promptK, usage.outTokensPerTurn, usage.toolTokensPerTurn, usage.cacheMissPct);
-    // workload output is set by the user's turns (total across all parallel agents),
-    // not by the card's speed
-    var outPerYear = usage.turnsPerDay * usage.outTokensPerTurn * 365;
-    // the card works only while decoding responses and prefilling fresh input; local prefix
-    // cache doesn't expire, so missed hosted cache reads cost no local prefill. Prefill is
-    // compute-bound, batching does not shrink it
-    var decodeTokens = usage.turnsPerDay * usage.outTokensPerTurn;
-    var prefillSec = usage.turnsPerDay * (usage.outTokensPerTurn + (usage.toolTokensPerTurn || 0)) / ptps;
-    var hoursSec = usage.hoursPerDay * 3600;
-    function busySec(s) { return prefillSec + decodeTokens / (s * tpsAt(s)); }
-    // fewest sessions that finish the turns in the usage hours; parallel off = one session
-    var sessionsCap = usage.parallel ? sessions : Math.min(sessions, 1);
-    var sessionsUsed = sessionsCap > 0 ? 1 : 0;
-    while (prefillSec < hoursSec && sessionsUsed < sessionsCap && busySec(sessionsUsed) > hoursSec) sessionsUsed++;
-    var s1 = Math.max(sessionsUsed, 1);
-    // sessions needed ignoring VRAM: S × tpsAt(S) ≥ rate solves to S ≥ rate × A ÷ (tps1 × (A + K) − rate × K);
-    // aggregate decode saturates at tps1 × (A + K) ÷ K, past which no S finishes the turns
-    var sNeeded = Infinity;
-    if (usage.parallel && prefillSec < hoursSec) {
-      var rate = decodeTokens / (hoursSec - prefillSec);
-      var den = tps1 * (activeGB + kvAvgGB) - rate * kvAvgGB;
-      if (den > 0) sNeeded = Math.max(1, Math.ceil(rate * activeGB / den - 1e-9));
-    }
-    var moreVramHelps = sessions < sNeeded && isFinite(sNeeded) && tpsAt(sNeeded) >= GATES.decodeTpsMin;
-    var tps = tpsAt(s1);
-    var busyHoursPerDay = busySec(s1) / 3600;
-    var elec = annualElecUSD(card.idleW, card.tdpW, Math.min(busyHoursPerDay, usage.hoursPerDay), usage.usdPerKwh);
-    var be = breakevenYears(netHardware, elec, outPerYear, hostedPerM);
+    // turns the card produces in the usage hours: fresh input (O + T) prefills compute-bound and
+    // does not batch; decode of O runs across the agents at their per-session t/s. Local prefix
+    // cache doesn't expire, so missed hosted cache reads cost no local prefill
+    var O = usage.outTokensPerTurn, prefillPerTurn = (O + (usage.toolTokensPerTurn || 0)) / ptps;
+    function turnsPerDay(s, t) { return usage.hoursPerDay * 3600 / (prefillPerTurn + O / (s * t)); }
+    var turns1 = turnsPerDay(1, tps), turnsMulti = turnsPerDay(Math.max(agents, 1), tpsMulti);
+    var out1 = turns1 * O * 365, outMulti = turnsMulti * O * 365;
+    // the card runs at capacity for all usage hours
+    var elec = annualElecUSD(card.idleW, card.tdpW, usage.hoursPerDay, usage.usdPerKwh);
+    var be1 = breakevenYears(netHardware, elec, out1, hostedPerM);
+    var be = breakevenYears(netHardware, elec, outMulti, hostedPerM);
 
     var verdict;
     if (!fits) {
@@ -146,54 +133,41 @@
         ' + KV ' + mem.kvGB.toFixed(1) + ' + ' + GATES.overheadGB + ' overhead); card has ' + card.vramGB + ' GB.');
     } else if (tps < GATES.decodeTpsMin) {
       verdict = 'TOO_SLOW';
-      reasons.push('Decode ~' + tps.toFixed(1) + ' t/s' + (s1 > 1 ? ' per session at ' + s1 + ' sessions' : '') +
-        ' — below the ' + GATES.decodeTpsMin + ' t/s usability floor.');
+      reasons.push('Decode ~' + tps.toFixed(1) + ' t/s — below the ' + GATES.decodeTpsMin + ' t/s usability floor.');
     } else if (ttft > GATES.ttftFailMin) {
       verdict = 'TOO_SLOW';
       reasons.push(promptK + 'K prefill (working context) takes ~' + ttft.toFixed(0) + ' min (> ' + GATES.ttftFailMin + ' min floor).');
-    } else if (usage.hoursPerDay <= 0 && decodeTokens > 0) {
-      verdict = 'TOO_SLOW';
-      reasons.push('No usage hours to serve the turns in.');
-    } else if (prefillSec > 0 && prefillSec >= hoursSec) {
-      verdict = 'TOO_SLOW';
-      reasons.push('Prefill alone takes ~' + (prefillSec / 3600).toFixed(1) + ' h/day — above the ' +
-        usage.hoursPerDay.toFixed(1) + ' h usage window, and batching does not shrink compute.');
-    } else if (busySec(s1) > hoursSec && moreVramHelps) {
-      verdict = 'NO_FIT';
-      reasons.push('Serving the turns at the ' + sessions + ' sessions VRAM fits (' + mem.kvGB.toFixed(1) +
-        ' GB KV each) takes ~' + busyHoursPerDay.toFixed(1) + ' h/day; usage hours give ' +
-        usage.hoursPerDay.toFixed(1) + ' h/day.');
-    } else if (busySec(s1) > hoursSec) {
-      verdict = 'TOO_SLOW';
-      reasons.push('Serving the turns takes ~' + busyHoursPerDay.toFixed(1) + ' h/day of decode + prefill' +
-        (s1 > 1 ? ' at ' + s1 + ' sessions' : '') + '; usage hours give ' + usage.hoursPerDay.toFixed(1) + ' h/day.');
     } else {
       verdict = (be <= GATES.buyHorizonYears) ? 'BUY' : 'RENT';
       if (verdict === 'RENT')
-        reasons.push(outPerYear <= 0 ? 'No turns — nothing to amortize against.'
-          : isFinite(be) ? 'Break-even ~' + be.toFixed(1) + ' y, past the ' + GATES.buyHorizonYears + ' y horizon.'
+        reasons.push(outMulti <= 0 ? 'No usage hours — nothing to amortize against.'
+          : isFinite(be) ? 'Break-even ~' + be.toFixed(1) + ' y at ' + agents + (agents === 1 ? ' agent' : ' agents') + ', past the ' + GATES.buyHorizonYears + ' y horizon.'
           : 'Never breaks even — electricity costs at least what the hosted tokens would.');
       if (ttft > GATES.ttftWarnMin)
         reasons.push('First token ~' + ttft.toFixed(1) + ' min (> ' + GATES.ttftWarnMin + ' min warn) for a ' + promptK + 'K prompt.');
     }
 
     GATES.holdYears.forEach(function (y) {
-      costPerM[y] = localCostPerM(card.priceUSD, elec, outPerYear, y);
+      costPerM[y] = localCostPerM(card.priceUSD, elec, outMulti, y);
     });
 
     return {
       verdict: verdict,
       reasons: reasons,
-      totalGB: fits ? mem.weightsGB + mem.kvGB * sessionsUsed + GATES.overheadGB : mem.totalGB,
+      totalGB: fits ? mem.weightsGB + mem.kvGB * agents + GATES.overheadGB : mem.totalGB,
       sessions: sessions,
-      sessionsUsed: sessionsUsed,
+      agents: agents,
       tps: tps,
+      tpsMulti: tpsMulti,
       ttftMin: ttft,
+      turnsPerWeek: turns1 * 7,
+      turnsPerWeekMulti: turnsMulti * 7,
       netHardwareUSD: netHardware,
       elecAnnualUSD: elec,
-      outTokensPerYear: outPerYear,
+      outTokensPerYear: outMulti,
       localCostPerM: costPerM,
       breakevenYears: be,
+      breakevenYears1: be1,
       hostedUsdPerM: hostedPerM
     };
   }
