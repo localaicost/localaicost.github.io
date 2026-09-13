@@ -20,7 +20,8 @@ python3 -m http.server 8080   # → http://localhost:8080
 
 Gates run in series; failing one sets the verdict (break-even and $/M are still shown):
 
-1. **Fit** — `total_params × bytes/weight + KV/1K × (system prompt + context) + 2 GB ≤ VRAM`.
+1. **Fit** — `total_params × bytes/weight + KV/1K × (system prompt + working context)
+   + 2 GB ≤ VRAM`.
 2. **Usability** — decode ≥ **5 t/s**; first token (system prompt + working context)
    ≤ **30 min** prefill, warn above 5 min. Rationale: slow decode is un-interactive;
    nobody waits 30 min for an agent to start working.
