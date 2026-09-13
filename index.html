@@ -114,15 +114,7 @@
 
   <details id="accuracy">
     <summary>Accuracy</summary>
-    <div>
-      <p><b>Formulas</b> — fit: weights + KV + 2 GB vs VRAM · decode t/s: bandwidth ÷ (active × bytes/weight) × 50% ·
-      prefill: TFLOPS × 35% ÷ (2×active) · break-even: price×(1−3 y resale) ÷ (annual hosted cost
-      (t/s × 3600 × h/week ÷ 7 × 365 × $/M ÷ 10⁶) − annual electricity)</p>
-      <p><b>Gates</b> — per card, in order: fit → decode ≥ 5 t/s → TTFT ≤ 30 min (warn &gt; 5) → break-even ≤ 3 y = BUY</p>
-      <p><b>Resale</b> — 25%/yr depreciation, not measured: 42% back after 3 y (new), 24% after 5 y (mid cycle),
-      10% after 8 y (old). Local $/M columns use the matching resale</p>
-      <p><b>Data</b> — estimated values are flagged in the row detail note. Edit the price field, not the math</p>
-    </div>
+    <div id="accuracy_body"></div>
   </details>
 </div>
 
@@ -155,7 +147,7 @@ const applyModel = () => {
   $('m_active').textContent = d.activeParamsB;
   $('m_kv').textContent = d.kvPerKGB;
   $('m_bpw').value = d.bytesPerWeight;  // preset quant; user can override after
-  if (!$('u_ctx').options[d.contextK]) $('u_ctx').add(new Option(d.contextK + 'K', d.contextK));
+  if (!$('u_ctx').querySelector(`option[value="${d.contextK}"]`)) $('u_ctx').add(new Option(d.contextK + 'K', d.contextK));
   $('u_ctx').value = d.contextK;  // model's default working context; user can change
   $('u_hosted').value = $('u_hosted').defaultValue = d.hostedUsdPerM;  // each model has its own API price
   $('m_note').textContent = d.note;
@@ -175,6 +167,7 @@ tbody.innerHTML = CARDS.map(c => `
     <td><input class="price" data-card="${c.id}" type="number" step="100" value="${c.priceUSD}"></td>
   </tr>`).join('');
 
+const G = LLMEcon.GATES;
 const BADGE = { BUY:['ok','BUY'], RENT:['rent','RENT'], NO_FIT:['bad',"NO FIT"], TOO_SLOW:['bad','TOO SLOW'] };
 const f = (x, d=1) => (x == null || !isFinite(x)) ? '∞'
   : x.toLocaleString('en-US', { maximumFractionDigits: d });
@@ -187,12 +180,12 @@ let usage;                        // last curUsage(), shared with the strip
 function curModel() {
   const d = curPreset();
   return { totalParamsB:d.totalParamsB, activeParamsB:d.activeParamsB,
-           bytesPerWeight:num('m_bpw'), kvPerKGB:d.kvPerKGB }; }
-function curUsage() { return { hoursPerDay:Math.min(num('u_hours'), 168) / 7, usdPerKwh:num('u_kwh'), contextK:num('u_ctx'),
-  systemPromptK:num('u_sys'), hostedUsdPerM:num('u_hosted') }; }
+           bytesPerWeight:num('m_bpw'), kvPerKGB:d.kvPerKGB, maxContextK:d.contextK }; }
+function curUsage() { return { hoursPerDay:Math.min(Math.max(num('u_hours'), 0), 168) / 7, usdPerKwh:Math.max(num('u_kwh'), 0), contextK:num('u_ctx'),
+  systemPromptK:Math.max(num('u_sys'), 0), hostedUsdPerM:Math.max(num('u_hosted'), 0) }; }
 function render() {
   const tpsOverride = $('u_tps').value !== '' ? num('u_tps') : undefined;
-  const model = curModel(), G = LLMEcon.GATES;
+  const model = curModel();
   usage = curUsage();
   for (const c of CARDS) {
     const row = tbody.querySelector(`tr[data-card="${c.id}"]`);
@@ -222,10 +215,10 @@ function renderStrip(id) {
     <div class="k">${c.name} — <span class="badge ${cls}">${label}</span></div>
     <div class="row">
       ${cell('VRAM used', vramText(r, c))}
-      ${cell('Net hardware (3 y)', '$' + f(r.netHardwareUSD, 0))}
+      ${cell('Net hardware (' + G.buyHorizonYears + ' y)', '$' + f(r.netHardwareUSD, 0))}
       ${cell('Electricity / year', '$' + f(r.elecAnnualUSD, 0))}
       ${cell('Output / year', f(r.tokensPerYear / 1e6, 0) + ' M tok')}
-      ${LLMEcon.GATES.holdYears.map(y => cell('Local $/M — ' + y + ' y', '$' + f(r.localCostPerM[y], 2),
+      ${G.holdYears.map(y => cell('Local $/M — ' + y + ' y', '$' + f(r.localCostPerM[y], 2),
           r.localCostPerM[y] < hosted)).join('')}
       ${cell('Hosted bar', '$' + f(hosted, 2) + '/M')}
     </div>
@@ -246,6 +239,21 @@ document.addEventListener('input', e => {
   if (e.target.id === 'm_preset') applyModel();
   render();
 });
+
+const pct = x => Math.round(x * 100) + '%';
+const TIER = { 3: 'new', 5: 'mid cycle', 8: 'old' };
+$('accuracy_body').innerHTML = `
+  <p><b>Formulas</b> — fit: weights + KV (system prompt + working context, capped at the model window) + ${G.overheadGB} GB vs VRAM ·
+  decode t/s: bandwidth ÷ (active × bytes/weight) × ${G.decodeEffPct}% ·
+  prefill: TFLOPS × ${G.prefillEffPct}% ÷ (2×active) · break-even: price×(1−${G.buyHorizonYears} y resale) ÷ (annual hosted cost
+  (t/s × 3600 × h/week ÷ 7 × 365 × $/M ÷ 10⁶) − annual electricity)</p>
+  <p><b>Gates</b> — per card, in order: fit → decode ≥ ${G.decodeTpsMin} t/s → TTFT ≤ ${G.ttftFailMin} min
+  (warn &gt; ${G.ttftWarnMin}) → break-even ≤ ${G.buyHorizonYears} y = BUY</p>
+  <p><b>Resale</b> — ${pct(G.depreciationPerYear)}/yr depreciation, not measured:
+  ${G.holdYears.map(y => `${pct(LLMEcon.resaleFraction(y))} back after ${y} y (${TIER[y]})`).join(', ')}.
+  Local $/M columns use the matching resale</p>
+  <p><b>Data</b> — estimated values are flagged in the row detail note; idle power is an estimate on
+  every card. Edit the price field, not the math</p>`;
 
 applyModel();
 tbody.querySelector(`tr[data-card="${selectedCard}"]`).classList.add('sel');

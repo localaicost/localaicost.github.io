@@ -32,7 +32,7 @@ python3 -m http.server 8080   # → http://localhost:8080
 
 Gates run in series; failing one stops the economics:
 
-1. **Fit** — `total_params × bytes/weight + KV/1K × context + 2 GB ≤ VRAM`.
+1. **Fit** — `total_params × bytes/weight + KV/1K × (system prompt + context) + 2 GB ≤ VRAM`.
 2. **Usability** — decode ≥ **5 t/s**; first token (system prompt + working context)
    ≤ **30 min** prefill, warn above 5 min. Rationale: slow decode is un-interactive;
    nobody waits 30 min for an agent to start working.
@@ -42,6 +42,10 @@ Gates run in series; failing one stops the economics:
 
 Verdicts: `BUY` / `RENT` / `NO_FIT` / `TOO_SLOW` (shown as "NO FIT" / "TOO SLOW") +
 one-line reasons.
+
+**System prompt** is the agent harness's fixed prompt (instructions, tool definitions), sent
+ahead of the working context. It fills KV and prefill like any other token. System prompt +
+working context is capped at the model's window (preset `contextK`).
 
 ## Accuracy
 
@@ -104,9 +108,9 @@ Models: GLM-5.3-Flash, DeepSeek-V4-Flash-0731, Qwen3.8-Flash-Next, Qwen3.8-27B.
   layers hold a constant-size state, not per-token KV. MHA: `kv_heads = num_attention_heads`;
   GQA: `num_key_value_heads`; MLA/latent-compressed: derive from the latent dim. Halve it for
   fp8 KV.
-- `contextK` (default working context, K tokens): the model's advertised context; prefilled
-  into the Working context dropdown on model select. A value missing from the dropdown
-  (128/256/512/1000) gets its own option added.
+- `contextK` (default working context, K tokens): the model's advertised context. It also caps
+  system prompt + working context, and is prefilled into the Working context dropdown on model
+  select. A value missing from the dropdown (128/256/512/1000) gets its own option added.
 - MoE: `totalParamsB` = everything that must be VRAM-resident (all experts);
   `activeParamsB` = routed per token. Tables deliberately offloaded to system RAM go in the
   note, **not** in `totalParamsB`.

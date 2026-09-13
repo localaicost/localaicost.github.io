@@ -16,6 +16,8 @@
     ttftFailMin: 30,      // TOO_SLOW above
     buyHorizonYears: 3,   // break-even beyond this → rent; also the resale point
     overheadGB: 2,        // CUDA context + activation margin
+    decodeEffPct: 50,     // % of bandwidth-bound decode t/s reached
+    prefillEffPct: 35,    // % of TFLOPS-bound prefill t/s reached
     depreciationPerYear: 0.25,
     holdYears: [3, 5, 8]  // local $/M horizons
   };
@@ -71,19 +73,21 @@
   }
 
   // card: {vramGB, bandwidthGBs, tflops, tdpW, idleW, priceUSD}
-  // model:{totalParamsB, activeParamsB, bytesPerWeight, kvPerKGB}
+  // model:{totalParamsB, activeParamsB, bytesPerWeight, kvPerKGB, maxContextK?}
   // usage:{hoursPerDay, usdPerKwh, contextK, systemPromptK, hostedUsdPerM}
   // tpsOverride: measured t/s; wins over the estimate
   function evaluate(card, model, usage, tpsOverride) {
     var reasons = [], costPerM = {};
 
-    var mem = fitGB(model.totalParamsB, model.bytesPerWeight, model.kvPerKGB, usage.contextK);
+    // system prompt = the harness's fixed prompt, cached ahead of the working context
+    var askedK = usage.systemPromptK + usage.contextK;
+    var promptK = (model.maxContextK != null) ? Math.min(askedK, model.maxContextK) : askedK;
+    var mem = fitGB(model.totalParamsB, model.bytesPerWeight, model.kvPerKGB, promptK);
     var fits = mem.totalGB <= card.vramGB;
 
     var tps = (tpsOverride != null) ? tpsOverride
-      : decodeTps(card.bandwidthGBs, model.activeParamsB, model.bytesPerWeight, 50);
-    var ptps = prefillTps(card.tflops, model.activeParamsB, 35);
-    var promptK = usage.systemPromptK + usage.contextK;
+      : decodeTps(card.bandwidthGBs, model.activeParamsB, model.bytesPerWeight, GATES.decodeEffPct);
+    var ptps = prefillTps(card.tflops, model.activeParamsB, GATES.prefillEffPct);
     var ttft = ttftMinutes(promptK * 1000, ptps);
 
     var netHardware = card.priceUSD * (1 - resaleFraction(GATES.buyHorizonYears));
@@ -104,14 +108,14 @@
     } else {
       verdict = (be <= GATES.buyHorizonYears) ? 'BUY' : 'RENT';
       if (verdict === 'RENT')
-        reasons.push(isFinite(be)
-          ? 'Break-even ~' + be.toFixed(1) + ' y, past the ' + GATES.buyHorizonYears + ' y horizon.'
+        reasons.push(usage.hoursPerDay <= 0 ? 'No usage hours — nothing to amortize against.'
+          : isFinite(be) ? 'Break-even ~' + be.toFixed(1) + ' y, past the ' + GATES.buyHorizonYears + ' y horizon.'
           : 'Never breaks even — electricity costs at least what the hosted tokens would.');
       if (ttft > GATES.ttftWarnMin)
         reasons.push('Slow first token: ~' + ttft.toFixed(1) + ' min for a ' + promptK + 'K prompt.');
-      if (usage.hoursPerDay <= 0)
-        reasons.push('No usage hours — nothing to amortize against.');
     }
+    if (promptK < askedK)
+      reasons.push('System prompt + working context (' + askedK + 'K) capped at the model\'s ' + promptK + 'K window.');
 
     GATES.holdYears.forEach(function (y) {
       costPerM[y] = localCostPerM(card.priceUSD, elec, tps, usage.hoursPerDay, y);

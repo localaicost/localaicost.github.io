@@ -25,6 +25,8 @@ Made on purpose — don't reverse them silently.
   request: cards are rows, model + usage are the variables, price is the only per-card input.
   No bandwidth/$ or memory/$ columns — the verdict, t/s, TTFT and break-even columns answer them.
 - **Prefill is a disqualifier, not a cost.** Slow decode or TTFT ⇒ `TOO_SLOW`, never a $ penalty.
+- **System prompt = the agent harness's prompt, not a model property** (user, 2026-09-13). It
+  counts toward KV fit and TTFT; system prompt + working context is capped at the model window.
 - **Presets are current-gen (2026) only — check the HF repo `createdAt` before adding a
   model.** Removed for
   age: Qwen3 30B-A3B / 235B-A22B, GLM-4.5-Air (2025-07), Kimi-Linear-48B (2025-10),
