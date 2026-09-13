@@ -38,7 +38,7 @@ const m70   = { totalParamsB: 70, activeParamsB: 70, bytesPerWeight: 0.6, kvPerK
 const m14   = { totalParamsB: 14, activeParamsB: 14, bytesPerWeight: 0.6, kvPerKGB: 0.082 };
 const pro   = { vramGB: 96, bandwidthGBs: 1792, tflops: 504, tdpW: 600, idleW: 30, priceUSD: 16000 };
 const r3090 = { vramGB: 24, bandwidthGBs: 936, tflops: 142, tdpW: 350, idleW: 25, priceUSD: 946 };
-const spark = { vramGB: 128, bandwidthGBs: 273, tflops: 119, tdpW: 170, idleW: 12, priceUSD: 6000 };
+const spark = { vramGB: 128, bandwidthGBs: 273, tflops: 119, tdpW: 140, idleW: 12, priceUSD: 6000 };
 
 // NO_FIT before decode: 70B Q4 needs 54.5 GB > 24; 50 GB/s would also fail decode (0.6 t/s)
 let r = C.evaluate({ ...r3090, bandwidthGBs: 50 }, m70, usage);

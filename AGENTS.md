@@ -18,6 +18,8 @@ first: formulas, gate order, accuracy caveats and presets live there.
   constants (`GATES`) stay there.
 - UI text stays source-free and date-free.
 - A preset `note` flags estimated specs in plain terms. Prices are all estimates; don't flag them.
+- Take TFLOPS from TechPowerUp's FP16 row; flopper.io shows TechPowerUp's BF16 as FP16 on
+  consumer cards. TechPowerUp blocks bots: ask the user to paste the spec block.
 - A card `note` adds facts the columns don't show: FP8/FP4 support, cooling, form factor,
   software limits. No market commentary, nothing the table or footer already says.
 - Keep the measured-t/s override prominent (README → Accuracy, MoE caveat).

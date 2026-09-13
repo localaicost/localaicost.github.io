@@ -65,7 +65,7 @@ are fixed preset data.
 
 Cards: RTX PRO 6000, RTX 3090 (used), 4090, 5090, 2×4090, DGX Spark, Mac Studio M3 Ultra 512 GB,
 Mac Studio M5 Ultra 512 GB, and the server tier: H100 PCIe 80 GB, H100 NVL 94 GB, H200 141 GB,
-B200 192 GB, B300 288 GB.
+B200 180 GB, B300 288 GB.
 
 Models: GLM-5.3-Flash, DeepSeek-V4-Flash-0731, Qwen3.8-Flash-Next, Qwen3.8-27B.
 

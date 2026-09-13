@@ -60,10 +60,10 @@
     "vramGB": 128,
     "bandwidthGBs": 273,
     "tflops": 119,
-    "tdpW": 170,
+    "tdpW": 140,
     "idleW": 12,
     "priceUSD": 6000,
-    "note": "TFLOPS and whole-box power are estimates. The GB10 CPU is ARM (aarch64): some wheels and containers are x86-only. The 128 GB is shared with the OS. A 200 GbE port links two Sparks."
+    "note": "TFLOPS is an estimate. The GB10 CPU is ARM (aarch64): some wheels and containers are x86-only. The 128 GB is shared with the OS. A 200 GbE port links two Sparks."
   },
   {
     "id": "m3u",
@@ -104,7 +104,7 @@
     "vramGB": 94,
     "bandwidthGBs": 3900,
     "tflops": 835,
-    "tdpW": 350,
+    "tdpW": 400,
     "idleW": 50,
     "priceUSD": 40000,
     "note": "TFLOPS is an estimate. Passive heatsink: needs server-chassis airflow. FP8 yes, FP4 no. An NVLink bridge links 2 or 4 cards."
@@ -122,10 +122,10 @@
   },
   {
     "id": "b200",
-    "name": "NVIDIA B200 192 GB (Blackwell)",
-    "vramGB": 192,
-    "bandwidthGBs": 8000,
-    "tflops": 2250,
+    "name": "NVIDIA B200 180 GB (Blackwell)",
+    "vramGB": 180,
+    "bandwidthGBs": 8190,
+    "tflops": 2219,
     "tdpW": 1000,
     "idleW": 80,
     "priceUSD": 50000,
@@ -135,8 +135,8 @@
     "id": "b300",
     "name": "NVIDIA B300 288 GB (Blackwell Ultra)",
     "vramGB": 288,
-    "bandwidthGBs": 8000,
-    "tflops": 2500,
+    "bandwidthGBs": 8190,
+    "tflops": 2464,
     "tdpW": 1100,
     "idleW": 90,
     "priceUSD": 60000,
