@@ -15,16 +15,17 @@ No build, no deps.
 # tests (the math lives in calc.js, pure and node-runnable)
 node test/calc.test.mjs
 
-# UI: open index.html directly, or
+# UI (needs HTTP; file:// can't fetch the presets)
 python3 -m http.server 8080   # → http://localhost:8080
 ```
 
 ## Files
 
 - `calc.js` — pure math (fit, decode/prefill estimates, electricity, break-even, gates).
-- `index.html` — UI (card table, model/usage controls, row detail strip), `CARDS` and
-  `MODELS` presets, wiring. Classic script tag, works from `file://`.
-- `test/calc.test.mjs` — pins the formulas and gate order.
+- `index.html` — UI (card table, model/usage controls, row detail strip), wiring.
+- `cards.json`, `models.json` — card and model presets; add one by appending an object.
+  Units follow the field names in `calc.js` (`evaluate`).
+- `test/calc.test.mjs` — pins the formulas and gate order; checks every preset evaluates.
 - `AGENTS.md` — working notes for agents editing this project.
 
 ## The model

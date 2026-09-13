@@ -9,7 +9,7 @@ the rules and the decisions behind them.
 - `node test/calc.test.mjs` must pass before claiming anything works. New math → new assertion.
 - `calc.js` stays DOM-free (UMD, runs in node and the browser). Formulas and assumption
   constants (`GATES`, decode/prefill efficiency) live there; card and model data live
-  in `index.html`.
+  in `cards.json` / `models.json`.
 - Every market number (price, spec, TFLOPS, hosted $/M) gets a row in the README data table:
   source + date if verified, flagged if estimated.
 - UI text stays source-free and date-free: flag an estimate in plain terms in the preset `note`;

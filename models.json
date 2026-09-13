@@ -1,0 +1,42 @@
+[
+  {
+    "id": "glm53-flash",
+    "name": "GLM-5.3-Flash 320B/18B (1M ctx)",
+    "totalParamsB": 320,
+    "activeParamsB": 18,
+    "bytesPerWeight": 0.6,
+    "kvPerKGB": 0.05,
+    "hostedUsdPerM": 0.5,
+    "note": "320B/18B active. Hybrid: 34/45 linear-attn + 11 sparse-attn layers → KV ≈ 50 KB/token (estimate). ~192 GB Q4 → 3×96 GB tier. Natively multimodal; vendor claims it approaches Claude Opus 4.8 on coding."
+  },
+  {
+    "id": "ds-v4-flash",
+    "name": "DeepSeek-V4-Flash-0731 284B/13B (1M ctx)",
+    "totalParamsB": 284,
+    "activeParamsB": 13,
+    "bytesPerWeight": 0.55,
+    "kvPerKGB": 0.02,
+    "hostedUsdPerM": 0.6,
+    "note": "284B/13B active, 1M ctx, native FP4+FP8; 0731 = latest checkpoint. ~156 GB → 2×96 GB or 192 GB+ unified. Hybrid CSA/HCA attn: KV at 1M ≈ 20 GB (estimate). Hosted as `deepseek-flash`; the prefilled price is off-peak."
+  },
+  {
+    "id": "qwen38-flash",
+    "name": "Qwen3.8-Flash-Next (125B LM + 4B MTP / 6B active)",
+    "totalParamsB": 129.5,
+    "activeParamsB": 6,
+    "bytesPerWeight": 0.55,
+    "kvPerKGB": 0.025,
+    "hostedUsdPerM": 0.47,
+    "note": "125 B LM + 4 B MTP; vision ≈ 0.45 B. +51 B n-gram table lives in system RAM (~28–31 GB at 4-bit, gather is cheap) — excluded from fit. KV: only 12/48 layers cache (QSA), ≈ 25 KB/token."
+  },
+  {
+    "id": "qwen38-27b",
+    "name": "Qwen3.8-27B (dense, 256 K)",
+    "totalParamsB": 27,
+    "activeParamsB": 27,
+    "bytesPerWeight": 0.6,
+    "kvPerKGB": 0.0655,
+    "hostedUsdPerM": 3,
+    "note": "Q4_K_M. KV: only 16 of 64 layers are full-attention GQA (4 kv heads × 256 dim) → 65.5 KB/token bf16 (halve for fp8 KV); the 48 Gated-DeltaNet layers hold constant state, not per-token KV."
+  }
+]

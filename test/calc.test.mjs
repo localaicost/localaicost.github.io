@@ -71,4 +71,13 @@ assert.ok(r.reasons[0].includes('prefill'), r.reasons[0]);
 r = C.evaluate(r3090, m14, usage, 20);
 assert.ok(Math.abs(r.tps - 20) < 1e-9);
 
+// presets: cards.json × models.json parse and evaluate to finite numbers
+const cards = require('../cards.json'), models = require('../models.json');
+const uiUsage = { hoursPerDay: 40 / 7, usdPerKwh: 0.12, contextK: 128, systemPromptK: 32 };
+for (const m of models) for (const c of cards) {
+  r = C.evaluate(c, m, { ...uiUsage, hostedUsdPerM: m.hostedUsdPerM });
+  for (const k of ['totalGB', 'tps', 'ttftMin', 'netHardwareUSD', 'elecAnnualUSD'])
+    assert.ok(Number.isFinite(r[k]), `${c.id} × ${m.id}: ${k} = ${r[k]}`);
+}
+
 console.log('calc.js: all checks passed');
