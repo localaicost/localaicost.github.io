@@ -1,6 +1,7 @@
-# llm-card-econ
+# llm-card-econ — LocalAI Cost (localaicost.com)
 
 Single-page calculator: **should I buy this GPU/machine to serve local LLMs, or rent tokens?**
+Domain bought 2026-09-13; deployment not configured yet.
 
 Built from a local-vs-hosted economics discussion (session history) and a YouTube
 transcript on local AI hardware (Jan–Jun 2026 claims). The UI lists every card with one
