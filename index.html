@@ -88,6 +88,9 @@
           <option value="1" selected>BF16 KV (1×)</option>
           <option value="0.5">FP8 KV (0.5×)</option>
         </select></label>
+      <label>Hosted in (USD / M tok) <input id="u_hosted_in" type="number" step="0.01"></label>
+      <label>Hosted out (USD / M tok) <input id="u_hosted" type="number" step="0.01"></label>
+      <label>Cache discount (%) <input id="u_cache_disc" type="number" step="1" min="0" max="100" value="0"></label>
       <div class="note" id="m_note"></div>
     </fieldset>
 
@@ -100,15 +103,12 @@
           <option value="128">128K</option><option value="256">256K</option>
           <option value="512">512K</option><option value="1000">1M</option>
         </select></label>
-      <label>Hosted in (USD / M tok) <input id="u_hosted_in" type="number" step="0.01"></label>
-      <label>Cache discount (%) <input id="u_cache_disc" type="number" step="1" min="0" max="100" value="0"></label>
       <label>Cache misses (%) <input id="u_cache_miss" type="number" step="1" min="0" max="100" value="1"></label>
-      <label>Hosted out (USD / M tok) <input id="u_hosted" type="number" step="0.01"></label>
       <label>Response tokens / turn <input id="u_out_turns" type="number" step="50" min="1" value="650"></label>
       <label>Tool output tokens / turn <input id="u_tool_turns" type="number" step="50" min="0" value="1350"></label>
       <label>Measured t/s (override, blank = estimate) <input id="u_tps" type="number" step="1"></label>
-      <div class="note">t/s override applies to every card row. Working context and hosted rates
-      are prefilled from the model preset — edit for your real values.</div>
+      <div class="note">t/s override applies to every card row. Working context is prefilled from
+      the model preset — edit for your real value.</div>
     </fieldset>
   </div>
 
@@ -116,7 +116,7 @@
 
   <table id="cards">
     <thead>
-      <tr><th>Card</th><th>VRAM (used / total)</th><th>Bandwidth</th><th>Verdict</th><th>t/s</th>
+      <tr><th>Card</th><th>VRAM, GB (used / total)</th><th>Bandwidth, TB/s</th><th>Verdict</th><th>t/s</th>
           <th>First token</th><th>Agents</th><th>Turns / week (1 / agents)</th>
           <th>Break-even (1 agent)</th><th>Break-even (agents)</th><th>Price</th></tr>
     </thead>
@@ -176,8 +176,8 @@ const tbody = document.querySelector('#cards tbody');
 tbody.innerHTML = CARDS.map(c => `
   <tr data-card="${c.id}">
     <td class="card-name">${c.name}</td>
-    <td class="vram">${c.vramGB} GB</td>
-    <td>${(c.bandwidthGBs/1000).toFixed(c.bandwidthGBs < 1000 ? 2 : 1)} TB/s</td>
+    <td class="vram">${c.vramGB}</td>
+    <td>${(c.bandwidthGBs/1000).toFixed(c.bandwidthGBs < 1000 ? 2 : 1)}</td>
     <td class="verdict"></td>
     <td class="tps"></td>
     <td class="ttft"></td>
@@ -192,7 +192,7 @@ const G = LLMEcon.GATES;
 const BADGE = { BUY:['ok','BUY'], RENT:['rent','RENT'], NO_FIT:['bad',"NO FIT"], TOO_SLOW:['bad','TOO SLOW'] };
 const f = (x, d=1) => (x == null || !isFinite(x)) ? '∞'
   : x.toLocaleString('en-US', { maximumFractionDigits: d });
-const vramText = (r, c) => f(r.totalGB) + ' / ' + c.vramGB + ' GB';
+const vramText = (r, c) => f(r.totalGB) + ' / ' + c.vramGB;
 const turnsK = x => f(x / 1000) + 'K';
 const cell = (k, v, hl) => `<div class="cell"><div class="k">${k}</div><div class="v${hl ? ' hl' : ''}">${v}</div></div>`;
 let selectedCard = CARDS[0].id;   // strip shows the top card until you pick another row
@@ -244,7 +244,7 @@ function renderStrip(id) {
   $('strip').innerHTML = `
     <div class="k">${c.name} — <span class="badge ${cls}">${label}</span></div>
     <div class="row">
-      ${cell('VRAM used', vramText(r, c))}
+      ${cell('VRAM used, GB', vramText(r, c))}
       ${cell('Agents / VRAM fits', r.agents + ' / ' + r.sessions)}
       ${cell('t/s per agent', f(r.tpsMulti))}
       ${cell('Net hardware (' + G.buyHorizonYears + ' y)', '$' + f(r.netHardwareUSD, 0))}
