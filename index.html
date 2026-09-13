@@ -89,14 +89,14 @@
       <label>Electricity (USD/kWh) <input id="u_kwh" type="number" step="0.01" value="0.12"></label>
       <label>Working context
         <select id="u_ctx" class="inline">
-          <option value="128" selected>128K</option><option value="256">256K</option>
+          <option value="128">128K</option><option value="256">256K</option>
           <option value="512">512K</option><option value="1000">1M</option>
         </select></label>
       <label>System prompt (K tokens) <input id="u_sys" type="number" step="1" value="32"></label>
       <label>Hosted out (USD / M tok) <input id="u_hosted" type="number" step="0.01"></label>
       <label>Measured t/s (override, blank = estimate) <input id="u_tps" type="number" step="1"></label>
-      <div class="note">t/s override applies to every card row. Hosted out is prefilled from the
-      model preset — edit for your real rate.</div>
+      <div class="note">t/s override applies to every card row. Working context and hosted out
+      are prefilled from the model preset — edit for your real values.</div>
     </fieldset>
   </div>
 
@@ -155,6 +155,8 @@ const applyModel = () => {
   $('m_active').textContent = d.activeParamsB;
   $('m_kv').textContent = d.kvPerKGB;
   $('m_bpw').value = d.bytesPerWeight;  // preset quant; user can override after
+  if (!$('u_ctx').options[d.contextK]) $('u_ctx').add(new Option(d.contextK + 'K', d.contextK));
+  $('u_ctx').value = d.contextK;  // model's default working context; user can change
   $('u_hosted').value = $('u_hosted').defaultValue = d.hostedUsdPerM;  // each model has its own API price
   $('m_note').textContent = d.note;
 };

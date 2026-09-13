@@ -42,5 +42,5 @@ Made on purpose — don't reverse them silently.
   uniform 40% framed as 1 y resale.
 - **Break-even nets electricity out of hosted savings** (user, 2026-09-13).
 - **Power circuits are not modeled** — assume anyone running a multi-GPU box has 230 V.
-- **Hosted $/M is prefilled per model preset** and stays user-editable; the earlier single
-  $0.47 default misled for models like Qwen3.8-27B at $3/M.
+- **Working context and hosted $/M are prefilled per model preset** and stay
+  user-editable; the earlier single $0.47 default misled for models like Qwen3.8-27B at $3/M.

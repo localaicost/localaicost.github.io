@@ -104,6 +104,9 @@ Models: GLM-5.3-Flash, DeepSeek-V4-Flash-0731, Qwen3.8-Flash-Next, Qwen3.8-27B.
   layers hold a constant-size state, not per-token KV. MHA: `kv_heads = num_attention_heads`;
   GQA: `num_key_value_heads`; MLA/latent-compressed: derive from the latent dim. Halve it for
   fp8 KV.
+- `contextK` (default working context, K tokens): the model's advertised context; prefilled
+  into the Working context dropdown on model select. A value missing from the dropdown
+  (128/256/512/1000) gets its own option added.
 - MoE: `totalParamsB` = everything that must be VRAM-resident (all experts);
   `activeParamsB` = routed per token. Tables deliberately offloaded to system RAM go in the
   note, **not** in `totalParamsB`.
