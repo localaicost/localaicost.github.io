@@ -63,7 +63,7 @@
     "tdpW": 140,
     "idleW": 12,
     "priceUSD": 6000,
-    "note": "TFLOPS is an estimate. The GB10 CPU is ARM (aarch64): some wheels and containers are x86-only. The 128 GB is shared with the OS. A 200 GbE port links two Sparks."
+    "note": "The GB10 CPU is ARM (aarch64): some wheels and containers are x86-only. The 128 GB is shared with the OS. A 200 GbE port links two Sparks."
   },
   {
     "id": "m3u",
