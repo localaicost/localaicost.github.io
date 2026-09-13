@@ -51,7 +51,8 @@ Made on purpose — don't reverse them silently.
   Replaced a uniform 40% framed as 1 y resale.
 - **Break-even nets electricity out of hosted savings** (user, 2026-09-13).
 - **No data-source table** (user, 2026-09-13). Specs don't change, prices go stale, git history
-  dates a number. Don't re-add sources or check dates to README; the preset `note` flags estimated specs.
+  dates a number. Don't re-add sources or check dates to README; the preset `note` flags
+  estimated specs.
 - **Power circuits are not modeled** — assume anyone running a multi-GPU box has 230 V.
 - **Working context and hosted $/M are prefilled per model preset** and stay
   user-editable; the earlier single $0.47 default misled for models like Qwen3.8-27B at $3/M.
