@@ -16,7 +16,10 @@ first: formulas, gate order, accuracy caveats and presets live there.
 - `node test/calc.test.mjs` must pass before claiming anything works. New math → new assertion.
 - `calc.js` stays DOM-free (UMD, runs in node and the browser). Formulas and assumption
   constants (`GATES`) stay there.
-- UI text stays source-free and date-free: flag an estimate in plain terms in the preset `note`.
+- UI text stays source-free and date-free.
+- A preset `note` flags estimated specs in plain terms. Prices are all estimates; don't flag them.
+- A card `note` adds facts the columns don't show: FP8/FP4 support, cooling, form factor,
+  software limits. No market commentary, nothing the table or footer already says.
 - Keep the measured-t/s override prominent (README → Accuracy, MoE caveat).
 - No build, no dependencies, no frameworks.
 - Live market price feeds are planned but unbuilt — don't scaffold for them.
@@ -48,7 +51,7 @@ Made on purpose — don't reverse them silently.
   Replaced a uniform 40% framed as 1 y resale.
 - **Break-even nets electricity out of hosted savings** (user, 2026-09-13).
 - **No data-source table** (user, 2026-09-13). Specs don't change, prices go stale, git history
-  dates a number. Don't re-add sources or check dates to README; the preset `note` flags estimates.
+  dates a number. Don't re-add sources or check dates to README; the preset `note` flags estimated specs.
 - **Power circuits are not modeled** — assume anyone running a multi-GPU box has 230 V.
 - **Working context and hosted $/M are prefilled per model preset** and stay
   user-editable; the earlier single $0.47 default misled for models like Qwen3.8-27B at $3/M.

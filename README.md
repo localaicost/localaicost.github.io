@@ -46,7 +46,8 @@ Everything is an **estimate for gating**, not a performance prediction:
   if you have one. It wins over the estimate.
 - Prefill: `t/s = TFLOPS × 35% ÷ (2 × active)`. Coarse (MoE prefill, batching, framework
   efficiency and long-context attention cost all move it); it only feeds the TTFT gate.
-- TFLOPS is FP16-dense class; estimated values are flagged in the card's note.
+- TFLOPS is FP16-dense class; estimated specs are flagged in the card's note. Prices are street
+  estimates.
 - KV/1K values assume bf16 KV. fp8 KV halves them — not modeled.
 - Break-even horizon (3 y) is the "new" hardware tier: the card is still in use at 3 y,
   then resold. Hardware tiers by age: new 2–3 y, mid cycle 3–5 y, old 5–8 y.

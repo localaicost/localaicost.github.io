@@ -259,8 +259,8 @@ $('accuracy_body').innerHTML = `
   <p><b>Resale</b> — ${pct(G.depreciationPerYear)}/yr depreciation, not measured:
   ${G.holdYears.map(y => `${pct(LLMEcon.resaleFraction(y))} back after ${y} y (${TIER[y]})`).join(', ')}.
   Local $/M columns use the matching resale</p>
-  <p><b>Data</b> — estimated values are flagged in the row detail note; idle power is an estimate on
-  every card. Edit the price field, not the math</p>`;
+  <p><b>Data</b> — prices are street estimates; estimated specs are flagged in the row detail note;
+  idle power is an estimate on every card. Edit the price field, not the math</p>`;
 
 applyModel();
 tbody.querySelector(`tr[data-card="${selectedCard}"]`).classList.add('sel');
