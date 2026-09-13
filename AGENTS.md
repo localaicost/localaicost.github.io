@@ -1,18 +1,22 @@
 # AGENTS.md
 
 Single-page calculator: buy a GPU to serve local LLMs, or rent hosted tokens? Read `README.md`
-first: files, formulas, gate order, accuracy caveats, data sources and presets live there.
+first: formulas, gate order, accuracy caveats and presets live there.
+
+## Files
+
+- `calc.js` — pure math (fit, decode/prefill estimates, electricity, break-even, gates).
+- `index.html` — UI (card table, model/usage controls, row detail strip), wiring.
+- `cards.json`, `models.json` — card and model presets; add one by appending an object.
+  Units follow the field names in `calc.js` (`evaluate`).
+- `test/calc.test.mjs` — pins the formulas and gate order; checks every preset evaluates.
 
 ## Rules
 
 - `node test/calc.test.mjs` must pass before claiming anything works. New math → new assertion.
 - `calc.js` stays DOM-free (UMD, runs in node and the browser). Formulas and assumption
-  constants (`GATES`, decode/prefill efficiency) live there; card and model data live
-  in `cards.json` / `models.json`.
-- Every market number (price, spec, TFLOPS, hosted $/M) gets a row in the README data table:
-  source + date if verified, flagged if estimated.
-- UI text stays source-free and date-free: flag an estimate in plain terms in the preset `note`;
-  cite source and date only in the README.
+  constants (`GATES`) stay there.
+- UI text stays source-free and date-free: flag an estimate in plain terms in the preset `note`.
 - Keep the measured-t/s override prominent (README → Accuracy, MoE caveat).
 - No build, no dependencies, no frameworks.
 - Live market price feeds are planned but unbuilt — don't scaffold for them.
@@ -25,6 +29,8 @@ Made on purpose — don't reverse them silently.
   request: cards are rows, model + usage are the variables, price is the only per-card input.
   No bandwidth/$ or memory/$ columns — the verdict, t/s, TTFT and break-even columns answer them.
 - **Prefill is a disqualifier, not a cost.** Slow decode or TTFT ⇒ `TOO_SLOW`, never a $ penalty.
+- **Failed-gate rows still show t/s, break-even and $/M** (user, 2026-09-13). The badge carries
+  the verdict; don't blank the numbers.
 - **System prompt = the agent harness's prompt, not a model property** (user, 2026-09-13). It
   counts toward KV fit and TTFT; system prompt + working context is capped at the model window.
 - **Presets are current-gen (2026) only — check the HF repo `createdAt` before adding a
@@ -41,6 +47,8 @@ Made on purpose — don't reverse them silently.
   don't resell hardware at 18 months (often never), so don't model a 1 y hold. Replaced a
   uniform 40% framed as 1 y resale.
 - **Break-even nets electricity out of hosted savings** (user, 2026-09-13).
+- **No data-source table** (user, 2026-09-13). Specs don't change, prices go stale, git history
+  dates a number. Don't re-add sources or check dates to README; the preset `note` flags estimates.
 - **Power circuits are not modeled** — assume anyone running a multi-GPU box has 230 V.
 - **Working context and hosted $/M are prefilled per model preset** and stay
   user-editable; the earlier single $0.47 default misled for models like Qwen3.8-27B at $3/M.
