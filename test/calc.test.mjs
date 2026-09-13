@@ -130,7 +130,7 @@ assert.ok(r.reasons[0].includes('Prefill alone'), r.reasons[0]);
 assert.equal(r.sessionsUsed, 1, `sessionsUsed ${r.sessionsUsed}`);
 // batched KV reads fail the decode gate: 27B on the Spark at 256K, 900 turns/day in 6 h fit at
 // no S ≤ 6 (VRAM), so sessions used stops at 6;
-// 8.43 × (16.2 + 8.38) ÷ (16.2 + 6 × 8.38) = 3.11 t/s per session < 5
+// 8.43 × (16.2 + 8.38) ÷ (16.2 + 6 × 8.38) = 3.11 t/s per session < 10
 r = C.evaluate(spark, { ...m27, maxContextK: 256 }, { ...usage, contextK: 256, turnsPerDay: 900,
   hoursPerDay: 6, parallel: true });
 assert.equal(r.verdict, 'TOO_SLOW');
@@ -140,7 +140,7 @@ assert.ok(r.reasons[0].includes('per session at 6 sessions'), r.reasons[0]);
 // no usage hours with turns to serve → capacity fails with its own reason
 r = C.evaluate(r3090, m14, { ...usage, hoursPerDay: 0 });
 assert.deepEqual(r.reasons, ['No usage hours to serve the turns in.']);
-// TOO_SLOW, decode before TTFT: 70B Q4 fits the Spark's 128 GB, 273 GB/s → 3.25 t/s < 5;
+// TOO_SLOW, decode before TTFT: 70B Q4 fits the Spark's 128 GB, 273 GB/s → 3.25 t/s < 10;
 // 2 TFLOPS would also fail TTFT (~213 min)
 r = C.evaluate({ ...spark, tflops: 2 }, m70, usage);
 assert.equal(r.verdict, 'TOO_SLOW');
@@ -168,6 +168,10 @@ assert.ok(Math.abs(r.totalGB - 34.968) < 0.001, `fit total ${r.totalGB}`);
 // measured t/s override wins over the estimate
 r = C.evaluate(r3090, m14, usage, 20);
 assert.ok(Math.abs(r.tps - 20) < 1e-9);
+// decode floor is 10 t/s: a measured 9 t/s fails usability
+r = C.evaluate(r3090, m14, usage, 9);
+assert.equal(r.verdict, 'TOO_SLOW');
+assert.ok(r.reasons[0].includes('below the 10 t/s'), r.reasons[0]);
 // fp8 KV flips 5090 × 27B at 256K context: 35.0 GB (NO_FIT) → 26.6 GB (fits, and the loaded
 // $23.22/M at 256K breaks even in ~1.1 y → BUY)
 r = C.evaluate(r5090, { ...m27, maxContextK: 256 }, { ...usage, contextK: 256 });

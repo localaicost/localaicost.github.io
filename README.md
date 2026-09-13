@@ -22,7 +22,7 @@ Gates run in series; failing one sets the verdict (break-even and $/M are still 
 1. Fit —
    `total_params × bytes/weight + KV/1K × working context + 2 GB ≤ VRAM`, i.e. VRAM holds at
    least one session.
-2. Usability — decode ≥ 5 t/s per session; first token (working context)
+2. Usability — decode ≥ 10 t/s per session; first token (working context)
    ≤ 30 min prefill, warn above 5 min. Rationale: slow decode is un-interactive;
    nobody waits 30 min for an agent to start working.
 3. Capacity — busy hours per day at S sessions = `turns × (response + tool output) ÷ prefill
@@ -30,7 +30,7 @@ Gates run in series; failing one sets the verdict (break-even and $/M are still 
    fewest S that fit, up to sessions fit (1 with parallel agents off); sessions fit =
    `floor((VRAM − weights − 2 GB) ÷ KV per session)`. Prefill alone ≥ usage hours → `TOO_SLOW`
    (compute-bound, batching can't shrink it). No S fits → `TOO_SLOW`, or, with parallel agents on,
-   `NO_FIT` when more sessions would fit the hours at ≥ 5 t/s but VRAM holds fewer. The
+   `NO_FIT` when more sessions would fit the hours at ≥ 10 t/s but VRAM holds fewer. The
    usability gate checks decode at sessions used.
 4. Economics — break-even = `price × (1 − 0.75³)` ÷ (annual hosted-dollar value
    of the workload's output (input-loaded, see Accuracy) − annual

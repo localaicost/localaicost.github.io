@@ -36,6 +36,8 @@ Made on purpose — don't reverse them silently.
 - **The card comparison table replaced the single-card view** (v1, git `de17f47`) at user
   request: cards are rows, model + usage are the variables, price is the only per-card input.
   No bandwidth/$ or memory/$ columns — the verdict, t/s, TTFT and break-even columns answer them.
+- **Decode floor is 10 t/s, not 5.** At 5 t/s a card passed the usability gate while unable
+  to run an agent's turns at a usable pace.
 - **Prefill is a disqualifier, not a cost.** Slow decode or TTFT ⇒ `TOO_SLOW`, never a $ penalty.
 - **Failed-gate rows still show t/s, break-even and $/M**. The badge carries
   the verdict; don't blank the numbers.
@@ -98,7 +100,7 @@ Made on purpose — don't reverse them silently.
   `floor((VRAM − weights − 2 GB) ÷ KV per session)` — the 2 GB is engine-level. Sessions used
   = fewest S ≤ fit with `turns×(O+T)÷prefill t/s + turns×O÷(S × t/s(S))` ≤ usage hours.
   Prefill alone ≥ usage → `TOO_SLOW`, S = 1; no S fits → `TOO_SLOW`, or `NO_FIT` when more
-  sessions would fit at ≥ 5 t/s but VRAM holds fewer (solved in closed form: aggregate decode
+  sessions would fit at ≥ 10 t/s but VRAM holds fewer (solved in closed form: aggregate decode
   saturates at `t/s(1) × (active + KV/2) ÷ KV/2`). Off keeps every earlier verdict.
 - **Per-session decode reads every session's KV:** `t/s(S) = t/s(1) × (active + KV/2) ÷
   (active + S × KV/2)`, KV at C/2. Batch-1 t/s at S sessions hid failed decode gates (Spark ×

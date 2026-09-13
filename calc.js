@@ -11,7 +11,7 @@
   'use strict';
 
   var GATES = {
-    decodeTpsMin: 5,      // TOO_SLOW below
+    decodeTpsMin: 10,     // TOO_SLOW below
     ttftWarnMin: 5,       // warn above
     ttftFailMin: 30,      // TOO_SLOW above
     buyHorizonYears: 3,   // break-even beyond this → rent; also the resale point
