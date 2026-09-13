@@ -20,12 +20,18 @@ python3 -m http.server 8080   # → http://localhost:8080
 Gates run in series; failing one sets the verdict (break-even and $/M are still shown):
 
 1. Fit —
-   `total_params × bytes/weight + KV/1K × working context + 2 GB ≤ VRAM`.
-2. Usability — decode ≥ 5 t/s; first token (working context)
+   `total_params × bytes/weight + KV/1K × working context + 2 GB ≤ VRAM`, i.e. VRAM holds at
+   least one session.
+2. Usability — decode ≥ 5 t/s per session; first token (working context)
    ≤ 30 min prefill, warn above 5 min. Rationale: slow decode is un-interactive;
    nobody waits 30 min for an agent to start working.
-3. Capacity — busy hours per day ≤ usage hours per day, where busy hours =
-   `turns × (response ÷ decode t/s + (response + tool output) ÷ prefill t/s)`.
+3. Capacity — busy hours per day at S sessions = `turns × (response + tool output) ÷ prefill
+   t/s + turns × response ÷ (S × per-session decode t/s)` ≤ usage hours. Sessions used = the
+   fewest S that fit, up to sessions fit (1 with parallel agents off); sessions fit =
+   `floor((VRAM − weights − 2 GB) ÷ KV per session)`. Prefill alone ≥ usage hours → `TOO_SLOW`
+   (compute-bound, batching can't shrink it). No S fits → `TOO_SLOW`, or, with parallel agents on,
+   `NO_FIT` when more sessions would fit the hours at ≥ 5 t/s but VRAM holds fewer. The
+   usability gate checks decode at sessions used.
 4. Economics — break-even = `price × (1 − 0.75³)` ÷ (annual hosted-dollar value
    of the workload's output (input-loaded, see Accuracy) − annual
    electricity). `BUY` if ≤ 3 years, `RENT` otherwise.
@@ -37,8 +43,10 @@ Working context is the prompt fill a session reaches — the agent harness's sys
 included. Presets default to 256K; pick another value for shorter or longer sessions. It is
 capped at the model's max supported context (preset `maxContextK`, defaults to `contextK`).
 
-The workload is set by agent turns / week (default 6,500), response tokens / turn (default 650)
-and tool output tokens / turn (default 1,350), not by the card's speed. Cache misses default to
+The workload is set by agent turns / week in thousands, summed across parallel agents (default
+6.5K, one heavy user's single-agent week; ~29K with several parallel agents), the parallel agents
+checkbox (default off), response tokens / turn (default 650) and tool output tokens / turn
+(default 1,350), not by the card's speed. Cache misses default to
 1%. The defaults come from a heavy agent user: the busiest full work week for turns, per-request
 means for the rest. Card t/s feeds the usability and capacity gates and the busy hours.
 
@@ -60,8 +68,8 @@ Everything is an **estimate for gating**, not a performance prediction:
   then resold. Hardware tiers by age: new 2–3 y, mid cycle 3–5 y, old 5–8 y.
 - Resale follows 25%/yr depreciation: 42% back after 3 y, 24% after 5 y, 10% after 8 y.
   The strip's local $/M columns (3 / 5 / 8 y) each use their own resale.
-- Electricity assumes the box idles 24/7 and runs at TDP for the busy hours only (decode +
-  fresh-input prefill, capped at usage hours). Local prefix cache doesn't expire, so a hosted
+- Electricity assumes the box idles 24/7 and runs at TDP for the busy hours only (capacity gate,
+  at sessions used, capped at usage hours). Local prefix cache doesn't expire, so a hosted
   cache miss costs no local prefill.
 - **Hosted $/M is input-loaded:**
   `out + (in×(O+T) + in×(1 − cache disc×(1 − misses))×(C/2−O−T)) / O` per M output.
@@ -70,7 +78,12 @@ Everything is an **estimate for gating**, not a performance prediction:
   missed share (idle gaps past the cache TTL), which bills at `in`. Context grows from 0 to C
   over a session, so the average turn carries C/2; the fit and TTFT gates use full C.
   C/2 ≤ O + T → the cache term is 0. Not modeled: one-time cache writes.
-- Batch 1 only — no multi-user serving, no prefill/decode disaggregation.
+- Sessions: per-session decode at S sessions =
+  `batch-1 t/s × (active GB + KV/2) ÷ (active GB + S × KV/2)` — each step reads the active
+  weights once plus every session's KV at the average context C/2; the batch-1 estimate (or
+  measured override) stands for one session's read. Sessions run in lockstep, an optimistic
+  bound: staggered duty cycles are not modeled. Prefill is compute-bound and does not scale
+  with batching.
 
 Editable in the UI: card price, quant, KV cache precision, and the usage fields.
 Card specs and model parameters

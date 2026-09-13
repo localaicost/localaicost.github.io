@@ -75,7 +75,8 @@ Made on purpose — don't reverse them silently.
   ratio knob, no cache writes. Presets carry `hostedInUsdPerM` + `hostedCacheDiscPct`.
 - **Workload = agent turns / week × response tokens, not card t/s × usage hours.** Hosted spend
   from card throughput grew with card speed (B200 × Qwen3.8-Flash ≈ $44K/y hosted). Usage hours
-  cap the busy hours (`TOO_SLOW` above them).
+  cap the busy hours (`TOO_SLOW` above them). Turns are the total across all parallel agents —
+  see the sessions decision below.
 - **Usage defaults come from a heavy agent user, not medians or P90** — buyers of these cards
   are heavy users. From 13.5K logged agent requests (Pro plan): per-request means of 654
   output tokens, 1,335 fresh tokens beyond the response on non-miss requests, misses (cache
@@ -84,8 +85,26 @@ Made on purpose — don't reverse them silently.
   vacation days, and Pro session limits capped both weeks. Means sum to the yearly spend;
   medians undercount it. P90 per-request fields don't co-occur, and a P90 day annualized
   ~doubles spend, pushing verdicts toward BUY.
-- **Max-plan parallel-agent volume (~4.5× Pro, ~29K turns/week) is not the default.** It is
-  an unverified extrapolation, and serving it needs parallel requests; the model is batch 1.
+- **6.5K turns is a single-agent week; ~29K (~4.5×, Max plan) needs parallel agents** — it is
+  not the default. Users running parallel agents enter ~29K turns and tick the checkbox.
+- **Turns are entered in thousands (step 0.5K).** They are means; single-turn precision added
+  nothing and made the value harder to change.
+- **Parallel agents is a checkbox (default off), not an agent count.** Off = one session: a
+  single agent runs turns one after another, and splitting them across free VRAM flipped 116
+  `TOO_SLOW` rows (Spark × Qwen3.8-27B to `BUY`). On = batch up to what VRAM holds. An agent
+  count was dropped: it changed 1–4 of 52 verdicts vs the checkbox at 29K turns, and the turn
+  count already implies concurrency. On uses the fewest sessions the turns need, never all of
+  VRAM: turns are fixed, so extra sessions only lower per-session t/s. Sessions fit =
+  `floor((VRAM − weights − 2 GB) ÷ KV per session)` — the 2 GB is engine-level. Sessions used
+  = fewest S ≤ fit with `turns×(O+T)÷prefill t/s + turns×O÷(S × t/s(S))` ≤ usage hours.
+  Prefill alone ≥ usage → `TOO_SLOW`, S = 1; no S fits → `TOO_SLOW`, or `NO_FIT` when more
+  sessions would fit at ≥ 5 t/s but VRAM holds fewer (solved in closed form: aggregate decode
+  saturates at `t/s(1) × (active + KV/2) ÷ KV/2`). Off keeps every earlier verdict.
+- **Per-session decode reads every session's KV:** `t/s(S) = t/s(1) × (active + KV/2) ÷
+  (active + S × KV/2)`, KV at C/2. Batch-1 t/s at S sessions hid failed decode gates (Spark ×
+  27B at 256K, 4 sessions: 8.4 shown, 4.2 modeled). Anchored at S = 1 so the batch-1 estimate
+  and the measured override stay as they were. Lockstep (no staggered duty cycles) remains an
+  optimistic bound. Table: Sessions (used / fit), t/s per session, VRAM fills to sessions used.
 - **Electricity bills TDP for busy hours, not usage hours** — busy = decode + fresh-input
   prefill for the turns. Billing all usage hours overstated local cost (5090 × Qwen3.8-27B:
   $168 → $45/y, break-even 6.3 → 4.0 y).
