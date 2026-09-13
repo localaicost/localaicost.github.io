@@ -37,8 +37,10 @@ Made on purpose — don't reverse them silently.
 - **Prefill is a disqualifier, not a cost.** Slow decode or TTFT ⇒ `TOO_SLOW`, never a $ penalty.
 - **Failed-gate rows still show t/s, break-even and $/M**. The badge carries
   the verdict; don't blank the numbers.
-- **System prompt = the agent harness's prompt, not a model property**. It
-  counts toward KV fit and TTFT; system prompt + working context is capped at the model window.
+- **Working context = worst-case prompt fill, system prompt included** — no separate system
+  prompt input; it double-counted tokens already inside the context. The dropdown caps at the
+  model's max supported context (`maxContextK`, defaults to advertised `contextK`); presets
+  with extendable context declare it.
 - **Presets are current-gen (2026) only — check the HF repo `createdAt` before adding a
   model.** Removed for
   age: Qwen3 30B-A3B / 235B-A22B, GLM-4.5-Air (2025-07), Kimi-Linear-48B (2025-10),

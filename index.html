@@ -100,7 +100,6 @@
           <option value="128">128K</option><option value="256">256K</option>
           <option value="512">512K</option><option value="1000">1M</option>
         </select></label>
-      <label>System prompt (K tokens) <input id="u_sys" type="number" step="1" value="32"></label>
       <label>Hosted out (USD / M tok) <input id="u_hosted" type="number" step="0.01"></label>
       <label>Measured t/s (override, blank = estimate) <input id="u_tps" type="number" step="1"></label>
       <div class="note">t/s override applies to every card row. Working context and hosted out
@@ -192,9 +191,9 @@ function curModel() {
   const d = curPreset();
   return { totalParamsB:d.totalParamsB, activeParamsB:d.activeParamsB,
            bytesPerWeight:num('m_bpw'), kvPerKGB:d.kvPerKGB,
-           kvScale:parseFloat($('m_kvq').value), maxContextK:d.contextK }; }
+           kvScale:parseFloat($('m_kvq').value), maxContextK:d.maxContextK ?? d.contextK }; }
 function curUsage() { return { hoursPerDay:Math.min(Math.max(num('u_hours'), 0), 168) / 7, usdPerKwh:Math.max(num('u_kwh'), 0), contextK:num('u_ctx'),
-  systemPromptK:Math.max(num('u_sys'), 0), hostedUsdPerM:Math.max(num('u_hosted'), 0) }; }
+  hostedUsdPerM:Math.max(num('u_hosted'), 0) }; }
 function render() {
   const tpsOverride = $('u_tps').value !== '' ? num('u_tps') : undefined;
   const model = curModel();
@@ -256,7 +255,7 @@ document.addEventListener('input', e => {
 const pct = x => Math.round(x * 100) + '%';
 const TIER = { 3: 'new', 5: 'mid cycle', 8: 'old' };
 $('accuracy_body').innerHTML = `
-  <p><b>Formulas</b> — fit: weights + KV (system prompt + working context, capped at the model window) × KV-cache precision (FP8 = ½ of bf16) + ${G.overheadGB} GB vs VRAM ·
+  <p><b>Formulas</b> — fit: weights + KV (working context, capped at the model's max supported context) × KV-cache precision (FP8 = ½ of bf16) + ${G.overheadGB} GB vs VRAM ·
   decode t/s: bandwidth ÷ (active × bytes/weight) × ${G.decodeEffPct}% ·
   prefill: TFLOPS × ${G.prefillEffPct}% ÷ (2×active) · break-even: price×(1−${G.buyHorizonYears} y resale) ÷ (annual hosted cost
   (t/s × 3600 × h/week ÷ 7 × 365 × $/M ÷ 10⁶) − annual electricity)</p>

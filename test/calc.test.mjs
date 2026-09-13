@@ -35,7 +35,7 @@ assert.ok(Math.abs(C.breakevenYears(9250, 131.4, 271.515, 4, 0.47) - 17.15) < 0.
 assert.ok(Math.abs(C.localCostPerM(16000, 131.4, 271.515, 4, 3) - 2.2527) < 0.001);
 
 // --- end-to-end verdicts
-const usage = { hoursPerDay: 4, usdPerKwh: 0.12, contextK: 32, systemPromptK: 32, hostedUsdPerM: 0.47 };
+const usage = { hoursPerDay: 4, usdPerKwh: 0.12, contextK: 32, hostedUsdPerM: 0.47 };
 const m27   = { totalParamsB: 27, activeParamsB: 27, bytesPerWeight: 0.6, kvPerKGB: 0.0655 };
 const m70   = { totalParamsB: 70, activeParamsB: 70, bytesPerWeight: 0.6, kvPerKGB: 0.328 };
 const m14   = { totalParamsB: 14, activeParamsB: 14, bytesPerWeight: 0.6, kvPerKGB: 0.082 };
@@ -47,11 +47,11 @@ const spark = { vramGB: 128, bandwidthGBs: 273, tflops: 119, tdpW: 140, idleW: 1
 // NO_FIT before decode: 70B Q4 needs 54.5 GB > 24; 50 GB/s would also fail decode (0.6 t/s)
 let r = C.evaluate({ ...r3090, bandwidthGBs: 50 }, m70, usage);
 assert.equal(r.verdict, 'NO_FIT');
-// FIT + RENT: 27B fits the 3090 (16.2 + KV 64K × 0.0655 = 4.19 + 2 = 22.4 GB),
+// FIT + RENT: 27B fits the 3090 (16.2 + KV 32K × 0.0655 = 2.10 + 2 = 20.3 GB),
 // but 4 h/day @ $0.47/M saves $71/y against $83/y electricity → never breaks even
 r = C.evaluate(r3090, m27, usage);
 assert.equal(r.verdict, 'RENT');
-assert.ok(Math.abs(r.totalGB - 22.392) < 0.001, `fit total ${r.totalGB}`);
+assert.ok(Math.abs(r.totalGB - 20.296) < 0.001, `fit total ${r.totalGB}`);
 assert.equal(r.breakevenYears, Infinity);
 assert.ok(r.reasons[0].includes('Never breaks even'), r.reasons[0]);
 // FIT + RENT: same on PRO 6000, 16k card @ 4 h/day → 10+ y break-even
@@ -68,15 +68,15 @@ assert.ok(r.breakevenYears < 3, r.breakevenYears);
 r = C.evaluate({ ...spark, tflops: 2 }, m70, usage);
 assert.equal(r.verdict, 'TOO_SLOW');
 assert.ok(r.reasons[0].includes('t/s'), r.reasons[0]);
-// TOO_SLOW, TTFT before economics: the BUY case above on a 2-TFLOPS box → 64K prefill ~43 min
-r = C.evaluate({ ...r3090, tflops: 2 }, m14, { ...usage, hoursPerDay: 12 });
+// TOO_SLOW, TTFT before economics: the BUY case above on a 2-TFLOPS box, 64K prefill ~43 min
+r = C.evaluate({ ...r3090, tflops: 2 }, m14, { ...usage, hoursPerDay: 12, contextK: 64 });
 assert.equal(r.verdict, 'TOO_SLOW');
 assert.ok(r.reasons[0].includes('prefill'), r.reasons[0]);
 // no usage hours → one reason, not "never breaks even" on top
 r = C.evaluate(r3090, m14, { ...usage, hoursPerDay: 0 });
 assert.deepEqual(r.reasons, ['No usage hours — nothing to amortize against.']);
-// prompt over the model window: 32K system + 256K context capped at 256K → 16.2 + 16.77 + 2 GB
-r = C.evaluate(pro, { ...m27, maxContextK: 256 }, { ...usage, contextK: 256 });
+// context over the model max: 512K requested, capped at 256K → 16.2 + 16.77 + 2 GB
+r = C.evaluate(pro, { ...m27, maxContextK: 256 }, { ...usage, contextK: 512 });
 assert.ok(Math.abs(r.totalGB - 34.968) < 0.001, `fit total ${r.totalGB}`);
 // measured t/s override wins over the estimate
 r = C.evaluate(r3090, m14, usage, 20);
@@ -90,8 +90,9 @@ assert.equal(r.verdict, 'RENT');
 // presets: cards.json × models.json parse and evaluate to finite numbers
 const cards = require('../cards.json'), models = require('../models.json');
 for (const m of models)
-  assert.ok(Number.isFinite(m.contextK) && m.contextK > 0, `${m.id}: contextK = ${m.contextK}`);
-const uiUsage = { hoursPerDay: 40 / 7, usdPerKwh: 0.12, systemPromptK: 32 };
+  assert.ok(Number.isFinite(m.contextK) && m.contextK > 0 && (!m.maxContextK || m.maxContextK >= m.contextK),
+    `${m.id}: contextK = ${m.contextK}, maxContextK = ${m.maxContextK}`);
+const uiUsage = { hoursPerDay: 40 / 7, usdPerKwh: 0.12 };
 for (const m of models) for (const c of cards) {
   r = C.evaluate(c, m, { ...uiUsage, contextK: m.contextK, hostedUsdPerM: m.hostedUsdPerM });
   for (const k of ['totalGB', 'tps', 'ttftMin', 'netHardwareUSD', 'elecAnnualUSD'])

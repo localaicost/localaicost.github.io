@@ -29,6 +29,7 @@
     "bytesPerWeight": 0.55,
     "kvPerKGB": 0.025,
     "contextK": 256,
+    "maxContextK": 1000,
     "hostedUsdPerM": 0.47,
     "note": "Total includes ≈ 0.45 B vision. +51 B n-gram table lives in system RAM (~28–31 GB at 4-bit) — excluded from fit. KV: only 12/48 layers cache (QSA), ≈ 25 KB/token. Context extends to 1M."
   },
@@ -40,7 +41,8 @@
     "bytesPerWeight": 0.6,
     "kvPerKGB": 0.0655,
     "contextK": 256,
+    "maxContextK": 1000,
     "hostedUsdPerM": 3,
-    "note": "KV: only 16 of 64 layers are full-attention GQA (4 kv heads × 256 dim) → 65.5 KB/token bf16; the 48 Gated-DeltaNet layers hold constant state, not per-token KV."
+    "note": "KV: only 16 of 64 layers are full-attention GQA (4 kv heads × 256 dim) → 65.5 KB/token bf16; the 48 Gated-DeltaNet layers hold constant state, not per-token KV. Context extends to 1M."
   }
 ]

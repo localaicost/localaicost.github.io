@@ -75,14 +75,13 @@
 
   // card: {vramGB, bandwidthGBs, tflops, tdpW, idleW, priceUSD}
   // model:{totalParamsB, activeParamsB, bytesPerWeight, kvPerKGB, kvScale?, maxContextK?}
-  // usage:{hoursPerDay, usdPerKwh, contextK, systemPromptK, hostedUsdPerM}
+  // usage:{hoursPerDay, usdPerKwh, contextK, hostedUsdPerM}
   // tpsOverride: measured t/s; wins over the estimate
   function evaluate(card, model, usage, tpsOverride) {
     var reasons = [], costPerM = {};
 
-    // system prompt = the harness's fixed prompt, cached ahead of the working context
-    var askedK = usage.systemPromptK + usage.contextK;
-    var promptK = (model.maxContextK != null) ? Math.min(askedK, model.maxContextK) : askedK;
+    // working context = worst-case prompt fill (system prompt included), capped at the model's max
+    var promptK = (model.maxContextK != null) ? Math.min(usage.contextK, model.maxContextK) : usage.contextK;
     var mem = fitGB(model.totalParamsB, model.bytesPerWeight, model.kvPerKGB, promptK, model.kvScale);
     var fits = mem.totalGB <= card.vramGB;
 
@@ -105,7 +104,7 @@
       reasons.push('Decode ~' + tps.toFixed(1) + ' t/s — below the ' + GATES.decodeTpsMin + ' t/s usability floor.');
     } else if (ttft > GATES.ttftFailMin) {
       verdict = 'TOO_SLOW';
-      reasons.push(promptK + 'K prefill (system prompt + working context) takes ~' + ttft.toFixed(0) + ' min (> ' + GATES.ttftFailMin + ' min floor).');
+      reasons.push(promptK + 'K prefill (working context) takes ~' + ttft.toFixed(0) + ' min (> ' + GATES.ttftFailMin + ' min floor).');
     } else {
       verdict = (be <= GATES.buyHorizonYears) ? 'BUY' : 'RENT';
       if (verdict === 'RENT')
