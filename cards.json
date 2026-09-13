@@ -8,7 +8,7 @@
     "tdpW": 600,
     "idleW": 30,
     "priceUSD": 16000,
-    "note": "Modeled as the 600 W Workstation edition. The Max-Q edition has the same 96 GB at 300 W and ~13% lower TFLOPS, easier to stack. Native FP4."
+    "note": "Modeled as the 600 W Workstation edition. The Max-Q edition has the same 96 GB at 300 W and ~13% lower TFLOPS. Native FP4."
   },
   {
     "id": "3090",
@@ -19,7 +19,7 @@
     "tdpW": 350,
     "idleW": 25,
     "priceUSD": 946,
-    "note": "Ampere has no FP8 or FP4 kernels: FP8 quants run weight-only and slower. Only card here with an NVLink bridge. Used cards are often ex-mining; the back-side VRAM runs hot."
+    "note": "Ampere has no FP8 or FP4 kernels: FP8 quants run weight-only and slower. Only card here with an NVLink bridge. Back-side VRAM runs hot."
   },
   {
     "id": "4090",
@@ -85,7 +85,7 @@
     "tdpW": 480,
     "idleW": 10,
     "priceUSD": 18000,
-    "note": "TFLOPS and power are estimates. macOS caps GPU memory at ~75% of RAM by default (raise with sysctl iogpu.wired_limit_mb). No CUDA. M5 GPU cores add neural accelerators, which lift prefill over the M3."
+    "note": "TFLOPS and power are estimates. macOS caps GPU memory at ~75% of RAM by default (raise with sysctl iogpu.wired_limit_mb). No CUDA. M5 GPU cores add neural accelerators."
   },
   {
     "id": "h100pcie",

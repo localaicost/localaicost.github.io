@@ -8,7 +8,7 @@
     "kvPerKGB": 0.05,
     "contextK": 1000,
     "hostedUsdPerM": 0.5,
-    "note": "Hybrid: 34/45 linear-attn + 11 sparse-attn layers → KV ≈ 50 KB/token (estimate). ~192 GB Q4 → 3×96 GB tier. Natively multimodal; vendor claims it approaches Claude Opus 4.8 on coding."
+    "note": "Hybrid: 34/45 linear-attn + 11 sparse-attn layers → KV ≈ 50 KB/token (estimate). ~192 GB Q4 → 3×96 GB tier. Natively multimodal."
   },
   {
     "id": "ds-v4-flash",
@@ -19,7 +19,7 @@
     "kvPerKGB": 0.02,
     "contextK": 1000,
     "hostedUsdPerM": 0.6,
-    "note": "Native FP4+FP8; 0731 = latest checkpoint. ~156 GB → 2×96 GB or 192 GB+ unified. Hybrid CSA/HCA attn: KV at 1M ≈ 20 GB (estimate). Hosted as deepseek-flash; the prefilled price is off-peak."
+    "note": "Native FP4+FP8; 0731 is a checkpoint tag. ~156 GB → 2×96 GB or 192 GB+ unified. Hybrid CSA/HCA attn: KV at 1M ≈ 20 GB (estimate). Hosted as deepseek-flash; the prefilled price is off-peak."
   },
   {
     "id": "qwen38-flash",
@@ -30,7 +30,7 @@
     "kvPerKGB": 0.025,
     "contextK": 256,
     "hostedUsdPerM": 0.47,
-    "note": "Total includes ≈ 0.45 B vision. +51 B n-gram table lives in system RAM (~28–31 GB at 4-bit, gather is cheap) — excluded from fit. KV: only 12/48 layers cache (QSA), ≈ 25 KB/token. Context extends to 1M."
+    "note": "Total includes ≈ 0.45 B vision. +51 B n-gram table lives in system RAM (~28–31 GB at 4-bit) — excluded from fit. KV: only 12/48 layers cache (QSA), ≈ 25 KB/token. Context extends to 1M."
   },
   {
     "id": "qwen38-27b",
