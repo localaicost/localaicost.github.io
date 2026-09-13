@@ -85,14 +85,14 @@
 
     <fieldset>
       <legend>Your usage</legend>
-      <label>Usage hours / week <input id="u_hours" type="number" step="1" min="0" max="168"></label>
-      <label>Electricity (USD/kWh) <input id="u_kwh" type="number" step="0.01"></label>
+      <label>Usage hours / week <input id="u_hours" type="number" step="1" min="0" max="168" value="40"></label>
+      <label>Electricity (USD/kWh) <input id="u_kwh" type="number" step="0.01" value="0.12"></label>
       <label>Working context
         <select id="u_ctx" class="inline">
           <option value="128" selected>128K</option><option value="256">256K</option>
           <option value="512">512K</option><option value="1000">1M</option>
         </select></label>
-      <label>System prompt (K tokens) <input id="u_sys" type="number" step="1"></label>
+      <label>System prompt (K tokens) <input id="u_sys" type="number" step="1" value="32"></label>
       <label>Hosted out (USD / M tok) <input id="u_hosted" type="number" step="0.01"></label>
       <label>Measured t/s (override, blank = estimate) <input id="u_tps" type="number" step="1"></label>
       <div class="note">t/s override applies to every card row. Hosted out is prefilled from the
@@ -131,7 +131,7 @@
 'use strict';
 const $ = id => document.getElementById(id);
 const numVal = (v, d) => { const x = parseFloat(v); return isNaN(x) ? d : x; };  // v = an element's .value
-const num = (id, d) => numVal($(id).value, d);
+const num = id => numVal($(id).value, parseFloat($(id).defaultValue));  // blank → the field's default
 
 const CARDS = [
  { id:'pro6000', name:'RTX PRO 6000 Blackwell 96 GB', vramGB:96, bandwidthGBs:1792, tflops:504, tdpW:600, idleW:30, priceUSD:16000,
@@ -192,7 +192,7 @@ const applyModel = () => {
   $('m_active').textContent = d.activeParamsB;
   $('m_kv').textContent = d.kvPerKGB;
   $('m_bpw').value = d.bytesPerWeight;  // preset quant; user can override after
-  $('u_hosted').value = d.hostedUsdPerM;  // each model has its own API price
+  $('u_hosted').value = $('u_hosted').defaultValue = d.hostedUsdPerM;  // each model has its own API price
   $('m_note').textContent = d.note;
 };
 
@@ -283,7 +283,6 @@ document.addEventListener('input', e => {
 });
 
 applyModel();
-$('u_hours').value = 40; $('u_kwh').value = 0.12; $('u_sys').value = 32;
 tbody.querySelector(`tr[data-card="${selectedCard}"]`).classList.add('sel');
 safe(render);
 </script>
