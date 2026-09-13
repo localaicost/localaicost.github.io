@@ -66,6 +66,10 @@ Made on purpose — don't reverse them silently.
 - **Power circuits are not modeled** — assume anyone running a multi-GPU box has 230 V.
 - **Working context and hosted $/M are prefilled per model preset** and stay
   user-editable; the earlier single $0.47 default misled for models like Qwen3.8-27B at $3/M.
+- **Quant dropdown spans FP8 to 4-bit; presets default to ~FP4** (user decision). Q3_K_M and
+  Q2_K were dropped: below 4-bit, agentic quality falls by double digits and no gate models
+  quality. BF16 weights were dropped: 2× FP8 memory, not run locally. FP8 / Q6 are
+  near-lossless but not practical locally yet, so presets keep ~FP4.
 - **KV cache precision is a dropdown (bf16 default, fp8 = ½)**. First kept unmodeled, added
   on request — at 256K it flips Qwen3.8-27B on the 5090 (35.0 → 26.6 GB).
 - **Hosted $/M is input-loaded:** `out + (in×(O+T) + in×(1−disc×(1−miss))×(C/2−O−T))/O` —
