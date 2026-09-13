@@ -43,9 +43,9 @@ Made on purpose — don't reverse them silently.
 - **Server cards are single cards.** Dropped Sep 2026: H100 SXM (the H100 PCIe variant covers
   it) and the 4×H200 2U composite (a full-box verdict doesn't parse against per-card usage).
   B200 / B300 have no PCIe variant; they stay as SXM for comparison.
-- **Resale = uniform depreciation, card held for the BUY horizon** (user, 2026-09-13). Businesses
-  don't resell hardware at 18 months (often never), so don't model a 1 y hold. Replaced a
-  uniform 40% framed as 1 y resale.
+- **Resale = declining balance at 25%/yr, card held for the BUY horizon** (user, 2026-09-13).
+  Businesses don't resell hardware at 18 months (often never), so don't model a 1 y hold.
+  Replaced a uniform 40% framed as 1 y resale.
 - **Break-even nets electricity out of hosted savings** (user, 2026-09-13).
 - **No data-source table** (user, 2026-09-13). Specs don't change, prices go stale, git history
   dates a number. Don't re-add sources or check dates to README; the preset `note` flags estimates.
