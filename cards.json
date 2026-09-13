@@ -63,7 +63,7 @@
     "tdpW": 170,
     "idleW": 12,
     "priceUSD": 6000,
-    "note": "Power draw is a whole-box estimate. Soldered memory — resale riskier than 25%/yr depreciation."
+    "note": "Price and whole-box power draw are estimates. Soldered memory — resale riskier than 25%/yr depreciation."
   },
   {
     "id": "m3u",
@@ -85,7 +85,7 @@
     "tdpW": 480,
     "idleW": 10,
     "priceUSD": 18000,
-    "note": "Price estimate (512 GB is configure-to-order). TFLOPS and idle power est."
+    "note": "Price estimate (512 GB is configure-to-order). TFLOPS is an estimate."
   },
   {
     "id": "h100pcie",
