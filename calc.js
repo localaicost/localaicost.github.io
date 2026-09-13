@@ -11,12 +11,13 @@
   'use strict';
 
   var GATES = {
-    decodeTpsMin: 5,      // below this, interactive use is pointless
-    ttftWarnMin: 5,       // first token noticeably painful
-    ttftFailMin: 30,      // disqualify: nobody waits 30+ min to start
+    decodeTpsMin: 5,      // TOO_SLOW below
+    ttftWarnMin: 5,       // warn above
+    ttftFailMin: 30,      // TOO_SLOW above
     buyHorizonYears: 3,   // break-even beyond this → rent; also the resale point
     overheadGB: 2,        // CUDA context + activation margin
-    depreciationPerYear: 0.25
+    depreciationPerYear: 0.25,
+    holdYears: [3, 5, 8]  // local $/M horizons
   };
 
   // fraction of purchase price recovered on resale after `years`
@@ -45,7 +46,6 @@
     return promptTokens / prefillTps / 60;
   }
 
-  // machine idles 24/7, loads only during `hoursPerDay`
   function annualElecUSD(idleW, loadW, hoursPerDay, usdPerKwh) {
     var kwh = (idleW * 8760 + (loadW - idleW) * hoursPerDay * 365) / 1000;
     return kwh * usdPerKwh;
@@ -75,7 +75,7 @@
   // usage:{hoursPerDay, usdPerKwh, contextK, systemPromptK, hostedUsdPerM}
   // tpsOverride: measured t/s; wins over the estimate
   function evaluate(card, model, usage, tpsOverride) {
-    var reasons = [];
+    var reasons = [], costPerM = {};
 
     var mem = fitGB(model.totalParamsB, model.bytesPerWeight, model.kvPerKGB, usage.contextK);
     var fits = mem.totalGB <= card.vramGB;
@@ -103,11 +103,19 @@
       reasons.push(promptK + 'K prefill (system prompt + working context) takes ~' + ttft.toFixed(0) + ' min (> ' + GATES.ttftFailMin + ' min floor).');
     } else {
       verdict = (be <= GATES.buyHorizonYears) ? 'BUY' : 'RENT';
+      if (verdict === 'RENT')
+        reasons.push(isFinite(be)
+          ? 'Break-even ~' + be.toFixed(1) + ' y, past the ' + GATES.buyHorizonYears + ' y horizon.'
+          : 'Never breaks even — electricity costs at least what the hosted tokens would.');
       if (ttft > GATES.ttftWarnMin)
         reasons.push('Slow first token: ~' + ttft.toFixed(1) + ' min for a ' + promptK + 'K prompt.');
       if (usage.hoursPerDay <= 0)
         reasons.push('No usage hours — nothing to amortize against.');
     }
+
+    GATES.holdYears.forEach(function (y) {
+      costPerM[y] = localCostPerM(card.priceUSD, elec, tps, usage.hoursPerDay, y);
+    });
 
     return {
       verdict: verdict,
@@ -118,11 +126,7 @@
       netHardwareUSD: netHardware,
       elecAnnualUSD: elec,
       tokensPerYear: tokensPerYear(tps, usage.hoursPerDay),
-      localCostPerM: {
-        y3: localCostPerM(card.priceUSD, elec, tps, usage.hoursPerDay, 3),
-        y5: localCostPerM(card.priceUSD, elec, tps, usage.hoursPerDay, 5),
-        y8: localCostPerM(card.priceUSD, elec, tps, usage.hoursPerDay, 8)
-      },
+      localCostPerM: costPerM,
       breakevenYears: be
     };
   }

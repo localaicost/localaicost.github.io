@@ -57,7 +57,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Buy the card or rent the tokens?</h1>
+  <h1>LocalAI Cost — Buy the card or rent the tokens?</h1>
 
   <div class="grid">
     <fieldset>
@@ -95,8 +95,7 @@
       <label>System prompt (K tokens) <input id="u_sys" type="number" step="1"></label>
       <label>Hosted out (USD / M tok) <input id="u_hosted" type="number" step="0.01"></label>
       <label>Measured t/s (override, blank = estimate) <input id="u_tps" type="number" step="1"></label>
-      <div class="note">Estimator efficiency: decode 50%, prefill 35% of peak.
-      t/s override applies to every card row. Hosted out is prefilled from the
+      <div class="note">t/s override applies to every card row. Hosted out is prefilled from the
       model preset — edit for your real rate.</div>
     </fieldset>
   </div>
@@ -118,12 +117,11 @@
     <div>
       <p><b>Formulas</b> — fit: weights + KV + 2 GB vs VRAM · decode t/s: bandwidth ÷ (active × bytes/weight) × 50% ·
       prefill: TFLOPS × 35% ÷ (2×active) · break-even: price×(1−3 y resale) ÷ (annual hosted cost
-      (t/s × 3600 × h/day × 365 × $/M ÷ 10⁶) − annual electricity)</p>
+      (t/s × 3600 × h/week ÷ 7 × 365 × $/M ÷ 10⁶) − annual electricity)</p>
       <p><b>Gates</b> — per card, in order: fit → decode ≥ 5 t/s → TTFT ≤ 30 min (warn &gt; 5) → break-even ≤ 3 y = BUY</p>
       <p><b>Resale</b> — 25%/yr depreciation, not measured: 42% back after 3 y (new), 24% after 5 y (mid cycle),
       10% after 8 y (old). Local $/M columns use the matching resale</p>
-      <p><b>Data</b> — prices/specs are estimates unless the row note says otherwise; per-card caveats live in the row detail note.
-      Edit the price field, not the math</p>
+      <p><b>Data</b> — estimated values are flagged in the row detail note. Edit the price field, not the math</p>
     </div>
   </details>
 </div>
@@ -135,7 +133,6 @@ const $ = id => document.getElementById(id);
 const numVal = (v, d) => { const x = parseFloat(v); return isNaN(x) ? d : x; };  // v = an element's .value
 const num = (id, d) => numVal($(id).value, d);
 
-// Fixed specs per card; only price is user-editable (row input).
 const CARDS = [
  { id:'pro6000', name:'RTX PRO 6000 Blackwell 96 GB', vramGB:96, bandwidthGBs:1792, tflops:504, tdpW:600, idleW:30, priceUSD:16000,
    note:'Street price runs far above launch MSRP.' },
@@ -146,13 +143,13 @@ const CARDS = [
  { id:'5090', name:'RTX 5090 32 GB', vramGB:32, bandwidthGBs:1792, tflops:419, tdpW:575, idleW:30, priceUSD:2400,
    note:'Price is an estimate.' },
  { id:'2x4090', name:'2× RTX 4090 (PCIe, tensor-parallel)', vramGB:48, bandwidthGBs:1500, tflops:600, tdpW:950, idleW:50, priceUSD:3200,
-   note:'Price est. Effective bandwidth ≈ 75% of 2×1008 (PCIe overhead) — est.' },
+   note:'Price, bandwidth (≈ 75% of 2×1008 after PCIe overhead), TFLOPS and power are estimates.' },
  { id:'spark', name:'NVIDIA DGX Spark 128 GB', vramGB:128, bandwidthGBs:273, tflops:119, tdpW:170, idleW:12, priceUSD:6000,
-   note:'Soldered memory — resale riskier than 25%/yr depreciation.' },
+   note:'Power draw is a whole-box estimate. Soldered memory — resale riskier than 25%/yr depreciation.' },
  { id:'m3u', name:'Mac Studio M3 Ultra 512 GB', vramGB:512, bandwidthGBs:819, tflops:40, tdpW:280, idleW:10, priceUSD:16500,
-   note:'Price estimate. Now last-gen — M5 Ultra is current. Mac trade-in values run well below 25%/yr depreciation.' },
+   note:'Price, power and TFLOPS are estimates. Now last-gen — M5 Ultra is current. Mac trade-in values run well below 25%/yr depreciation.' },
  { id:'m5u', name:'Mac Studio M5 Ultra 512 GB', vramGB:512, bandwidthGBs:1200, tflops:72, tdpW:480, idleW:10, priceUSD:18000,
-   note:'Price estimate (512 GB is configure-to-order). TFLOPS est. (Apple publishes none); idle est.' },
+   note:'Price estimate (512 GB is configure-to-order). TFLOPS and idle power est.' },
  { id:'h100pcie', name:'NVIDIA H100 PCIe 80 GB (Hopper)', vramGB:80, bandwidthGBs:2000, tflops:756, tdpW:350, idleW:40, priceUSD:35000,
    note:'Hopper is last-gen server — Blackwell (B200/B300) is current. Edit price to your real quote.' },
  { id:'h100nvl', name:'NVIDIA H100 NVL 94 GB (Hopper)', vramGB:94, bandwidthGBs:3900, tflops:835, tdpW:350, idleW:50, priceUSD:40000,
@@ -166,13 +163,13 @@ const CARDS = [
 ];
 const MODELS = [
  { id:'glm53-flash', name:'GLM-5.3-Flash 320B/18B (1M ctx)', totalParamsB:320, activeParamsB:18, bytesPerWeight:0.6, kvPerKGB:0.05, hostedUsdPerM:0.50,
-   note:'320B/18B active. Hybrid: 34/45 linear-attn + 11 sparse-attn layers → KV ≈ 50 KB/token (estimate). ~192 GB Q4 → 3×96 GB tier, or 2×96 with reduced context. Natively multimodal; vendor claims it approaches Claude Opus 4.8 on coding.' },
+   note:'320B/18B active. Hybrid: 34/45 linear-attn + 11 sparse-attn layers → KV ≈ 50 KB/token (estimate). ~192 GB Q4 → 3×96 GB tier. Natively multimodal; vendor claims it approaches Claude Opus 4.8 on coding.' },
  { id:'ds-v4-flash', name:'DeepSeek-V4-Flash-0731 284B/13B (1M ctx)', totalParamsB:284, activeParamsB:13, bytesPerWeight:0.55, kvPerKGB:0.02, hostedUsdPerM:0.60,
-   note:'284B/13B active, 1M ctx, native FP4+FP8; 0731 = latest checkpoint. ~156 GB → 2×96 GB or 192 GB+ unified. Hybrid CSA/HCA attn: KV at 1M ≈ 20 GB (estimate). Hosted as `deepseek-flash`; the prefilled price is off-peak, peak is 2×.' },
+   note:'284B/13B active, 1M ctx, native FP4+FP8; 0731 = latest checkpoint. ~156 GB → 2×96 GB or 192 GB+ unified. Hybrid CSA/HCA attn: KV at 1M ≈ 20 GB (estimate). Hosted as `deepseek-flash`; the prefilled price is off-peak.' },
  { id:'qwen38-flash', name:'Qwen3.8-Flash-Next (125B LM + 4B MTP / 6B active)', totalParamsB:129.5, activeParamsB:6, bytesPerWeight:0.55, kvPerKGB:0.025, hostedUsdPerM:0.47,
-   note:'125 B LM + 4 B MTP; vision ≈ 0.45 B. +51 B n-gram table lives in system RAM (~26 GB Q4, gather is cheap) — excluded from fit. KV: only 12/48 layers cache (QSA), ≈ 25 KB/token.' },
- { id:'qwen38-27b', name:'Qwen3.8-27B (dense, 256 K)', totalParamsB:27, activeParamsB:27, bytesPerWeight:0.6, kvPerKGB:0.064, hostedUsdPerM:3.00,
-   note:'Q4_K_M. KV: only 16 of 64 layers are full-attention GQA (4 kv heads × 256 dim) → 64 KB/token bf16 (halve for fp8 KV); the 48 Gated-DeltaNet layers hold constant state, not per-token KV. Hosted input is $0.50/M.' }
+   note:'125 B LM + 4 B MTP; vision ≈ 0.45 B. +51 B n-gram table lives in system RAM (~28–31 GB at 4-bit, gather is cheap) — excluded from fit. KV: only 12/48 layers cache (QSA), ≈ 25 KB/token.' },
+ { id:'qwen38-27b', name:'Qwen3.8-27B (dense, 256 K)', totalParamsB:27, activeParamsB:27, bytesPerWeight:0.6, kvPerKGB:0.0655, hostedUsdPerM:3.00,
+   note:'Q4_K_M. KV: only 16 of 64 layers are full-attention GQA (4 kv heads × 256 dim) → 65.5 KB/token bf16 (halve for fp8 KV); the 48 Gated-DeltaNet layers hold constant state, not per-token KV.' }
 ];
 
 // --- error surface: never fail silently (empty columns = this bug class) ---
@@ -188,8 +185,9 @@ function safe(fn) { try { fn(); } catch (e) { fail(e); } }
 
 // --- model preset wiring (only the model dropdown fills fields) ---
 $('m_preset').innerHTML = MODELS.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+const curPreset = () => MODELS.find(x => x.id === $('m_preset').value);
 const applyModel = () => {
-  const d = MODELS.find(x => x.id === $('m_preset').value);
+  const d = curPreset();
   $('m_total').textContent = d.totalParamsB;
   $('m_active').textContent = d.activeParamsB;
   $('m_kv').textContent = d.kvPerKGB;
@@ -215,26 +213,29 @@ tbody.innerHTML = CARDS.map(c => `
 const BADGE = { BUY:['ok','BUY'], RENT:['rent','RENT'], NO_FIT:['bad',"NO FIT"], TOO_SLOW:['bad','TOO SLOW'] };
 const f = (x, d=1) => (x == null || !isFinite(x)) ? '∞'
   : x.toLocaleString('en-US', { maximumFractionDigits: d });
+const vramText = (r, c) => f(r.totalGB) + ' / ' + c.vramGB + ' GB';
 const cell = (k, v, hl) => `<div class="cell"><div class="k">${k}</div><div class="v${hl ? ' hl' : ''}">${v}</div></div>`;
 let selectedCard = CARDS[0].id;   // strip shows the top card until you pick another row
 const results = {};               // card id → last evaluate() result
+let usage;                        // last curUsage(), shared with the strip
 
 function curModel() {
-  const d = MODELS.find(x => x.id === $('m_preset').value);
+  const d = curPreset();
   return { totalParamsB:d.totalParamsB, activeParamsB:d.activeParamsB,
            bytesPerWeight:num('m_bpw'), kvPerKGB:d.kvPerKGB }; }
 function curUsage() { return { hoursPerDay:Math.min(num('u_hours'), 168) / 7, usdPerKwh:num('u_kwh'), contextK:num('u_ctx'),
   systemPromptK:num('u_sys'), hostedUsdPerM:num('u_hosted') }; }
 function render() {
   const tpsOverride = $('u_tps').value !== '' ? num('u_tps') : undefined;
-  const model = curModel(), usage = curUsage(), G = LLMEcon.GATES;
+  const model = curModel(), G = LLMEcon.GATES;
+  usage = curUsage();
   for (const c of CARDS) {
     const row = tbody.querySelector(`tr[data-card="${c.id}"]`);
     const card = { ...c, priceUSD: numVal(row.querySelector('.price').value, c.priceUSD) };
     const r = results[c.id] = LLMEcon.evaluate(card, model, usage, tpsOverride);
     const [cls, label] = BADGE[r.verdict];
     const vram = row.querySelector('.vram');
-    vram.textContent = f(r.totalGB) + ' / ' + c.vramGB + ' GB';
+    vram.textContent = vramText(r, c);
     vram.className = 'vram' + (r.verdict === 'NO_FIT' ? ' warn' : '');
     row.querySelector('.verdict').innerHTML = `<span class="badge ${cls}">${label}</span>`;
     row.querySelector('.tps').textContent = f(r.tps);
@@ -249,18 +250,18 @@ function render() {
 }
 
 function renderStrip(id) {
-  const c = CARDS.find(x => x.id === id), r = results[id], hosted = num('u_hosted');
+  const c = CARDS.find(x => x.id === id), r = results[id], hosted = usage.hostedUsdPerM;
   const [cls, label] = BADGE[r.verdict];
   $('strip').style.display = 'block';
   $('strip').innerHTML = `
     <div class="k">${c.name} — <span class="badge ${cls}">${label}</span></div>
     <div class="row">
-      ${cell('VRAM used', f(r.totalGB) + ' / ' + c.vramGB + ' GB')}
+      ${cell('VRAM used', vramText(r, c))}
       ${cell('Net hardware (3 y)', '$' + f(r.netHardwareUSD, 0))}
       ${cell('Electricity / year', '$' + f(r.elecAnnualUSD, 0))}
       ${cell('Output / year', f(r.tokensPerYear / 1e6, 0) + ' M tok')}
-      ${[3, 5, 8].map(y => cell('Local $/M — ' + y + ' y', '$' + f(r.localCostPerM['y' + y], 2),
-          r.localCostPerM['y' + y] < hosted)).join('')}
+      ${LLMEcon.GATES.holdYears.map(y => cell('Local $/M — ' + y + ' y', '$' + f(r.localCostPerM[y], 2),
+          r.localCostPerM[y] < hosted)).join('')}
       ${cell('Hosted bar', '$' + f(hosted, 2) + '/M')}
     </div>
     <div class="reasons">${r.reasons.length ? r.reasons.map(x => '• ' + x).join('<br>')
