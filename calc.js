@@ -49,38 +49,45 @@
     return promptTokens / prefillTps / 60;
   }
 
-  function annualElecUSD(idleW, loadW, hoursPerDay, usdPerKwh) {
-    var kwh = (idleW * 8760 + (loadW - idleW) * hoursPerDay * 365) / 1000;
+  // idle 24/7, TDP for `loadHoursPerDay`
+  function annualElecUSD(idleW, loadW, loadHoursPerDay, usdPerKwh) {
+    var kwh = (idleW * 8760 + (loadW - idleW) * loadHoursPerDay * 365) / 1000;
     return kwh * usdPerKwh;
   }
 
-  function tokensPerYear(tps, hoursPerDay) {
-    return tps * 3600 * hoursPerDay * 365;
-  }
-
   // local cost per 1M output tokens, holding the card `years` then reselling it
-  function localCostPerM(priceUSD, elecAnnualUSD, tps, hoursPerDay, years) {
-    var tokens = tokensPerYear(tps, hoursPerDay) * years;
+  function localCostPerM(priceUSD, elecAnnualUSD, outTokensPerYear, years) {
+    var tokens = outTokensPerYear * years;
     if (tokens <= 0) return Infinity;
     return (priceUSD * (1 - resaleFraction(years)) + elecAnnualUSD * years) / (tokens / 1e6);
   }
 
-  // years until the card's net cost is covered by what its tokens would cost
+  // years until the card's net cost is covered by what the workload's tokens would cost
   // hosted, minus the electricity to generate them
-  function breakevenYears(netHardwareUSD, elecAnnualUSD, tps, hoursPerDay, hostedUsdPerM) {
-    var savedPerYear = (tokensPerYear(tps, hoursPerDay) / 1e6) * hostedUsdPerM - elecAnnualUSD;
+  function breakevenYears(netHardwareUSD, elecAnnualUSD, outTokensPerYear, hostedUsdPerM) {
+    var savedPerYear = (outTokensPerYear / 1e6) * hostedUsdPerM - elecAnnualUSD;
     if (savedPerYear <= 0) return Infinity;
     return netHardwareUSD / savedPerYear;
   }
 
+  // hosted $/M output incl. input: per turn the fresh input is the last response + tool output
+  // (O + T); the rest of the session's average context (C/2 − O − T, context grows 0 → C) bills at
+  // the cache discount, except the missed share, which bills at the full input price
+  function hostedUsdPerM(outUsd, inUsd, cacheDiscPct, contextK, outTokens, toolTokens, cacheMissPct) {
+    var fresh = outTokens + (toolTokens || 0);
+    var cached = inUsd * (1 - (cacheDiscPct || 0) / 100 * (1 - (cacheMissPct || 0) / 100));
+    return outUsd + (inUsd * fresh + cached * Math.max(contextK * 500 - fresh, 0)) / Math.max(outTokens, 1);
+  }
+
   // card: {vramGB, bandwidthGBs, tflops, tdpW, idleW, priceUSD}
   // model:{totalParamsB, activeParamsB, bytesPerWeight, kvPerKGB, kvScale?, maxContextK?}
-  // usage:{hoursPerDay, usdPerKwh, contextK, hostedUsdPerM}
+  // usage:{hoursPerDay, usdPerKwh, contextK, hostedUsdPerM, hostedInUsdPerM,
+  //        hostedCacheDiscPct, cacheMissPct, turnsPerDay, outTokensPerTurn, toolTokensPerTurn}
   // tpsOverride: measured t/s; wins over the estimate
   function evaluate(card, model, usage, tpsOverride) {
     var reasons = [], costPerM = {};
 
-    // working context = worst-case prompt fill (system prompt included), capped at the model's max
+    // working context = a session's prompt fill (system prompt included), capped at the model's max
     var promptK = (model.maxContextK != null) ? Math.min(usage.contextK, model.maxContextK) : usage.contextK;
     var mem = fitGB(model.totalParamsB, model.bytesPerWeight, model.kvPerKGB, promptK, model.kvScale);
     var fits = mem.totalGB <= card.vramGB;
@@ -91,8 +98,16 @@
     var ttft = ttftMinutes(promptK * 1000, ptps);
 
     var netHardware = card.priceUSD * (1 - resaleFraction(GATES.buyHorizonYears));
-    var elec = annualElecUSD(card.idleW, card.tdpW, usage.hoursPerDay, usage.usdPerKwh);
-    var be = breakevenYears(netHardware, elec, tps, usage.hoursPerDay, usage.hostedUsdPerM);
+    var hostedPerM = hostedUsdPerM(usage.hostedUsdPerM, usage.hostedInUsdPerM, usage.hostedCacheDiscPct,
+      promptK, usage.outTokensPerTurn, usage.toolTokensPerTurn, usage.cacheMissPct);
+    // workload output is set by the user's turns, not by the card's speed
+    var outPerYear = usage.turnsPerDay * usage.outTokensPerTurn * 365;
+    // the card works only while decoding responses and prefilling fresh input; local prefix
+    // cache doesn't expire, so missed hosted cache reads cost no local prefill
+    var busyHoursPerDay = usage.turnsPerDay * (usage.outTokensPerTurn / tps +
+      (usage.outTokensPerTurn + (usage.toolTokensPerTurn || 0)) / ptps) / 3600;
+    var elec = annualElecUSD(card.idleW, card.tdpW, Math.min(busyHoursPerDay, usage.hoursPerDay), usage.usdPerKwh);
+    var be = breakevenYears(netHardware, elec, outPerYear, hostedPerM);
 
     var verdict;
     if (!fits) {
@@ -105,10 +120,15 @@
     } else if (ttft > GATES.ttftFailMin) {
       verdict = 'TOO_SLOW';
       reasons.push(promptK + 'K prefill (working context) takes ~' + ttft.toFixed(0) + ' min (> ' + GATES.ttftFailMin + ' min floor).');
+    } else if (busyHoursPerDay > usage.hoursPerDay) {
+      verdict = 'TOO_SLOW';
+      reasons.push(usage.hoursPerDay <= 0 ? 'No usage hours to serve the turns in.'
+        : 'Serving the turns takes ~' + busyHoursPerDay.toFixed(1) + ' h/day of decode + prefill; usage hours give ' +
+          usage.hoursPerDay.toFixed(1) + ' h/day.');
     } else {
       verdict = (be <= GATES.buyHorizonYears) ? 'BUY' : 'RENT';
       if (verdict === 'RENT')
-        reasons.push(usage.hoursPerDay <= 0 ? 'No usage hours — nothing to amortize against.'
+        reasons.push(outPerYear <= 0 ? 'No turns — nothing to amortize against.'
           : isFinite(be) ? 'Break-even ~' + be.toFixed(1) + ' y, past the ' + GATES.buyHorizonYears + ' y horizon.'
           : 'Never breaks even — electricity costs at least what the hosted tokens would.');
       if (ttft > GATES.ttftWarnMin)
@@ -116,7 +136,7 @@
     }
 
     GATES.holdYears.forEach(function (y) {
-      costPerM[y] = localCostPerM(card.priceUSD, elec, tps, usage.hoursPerDay, y);
+      costPerM[y] = localCostPerM(card.priceUSD, elec, outPerYear, y);
     });
 
     return {
@@ -127,9 +147,10 @@
       ttftMin: ttft,
       netHardwareUSD: netHardware,
       elecAnnualUSD: elec,
-      tokensPerYear: tokensPerYear(tps, usage.hoursPerDay),
+      outTokensPerYear: outPerYear,
       localCostPerM: costPerM,
-      breakevenYears: be
+      breakevenYears: be,
+      hostedUsdPerM: hostedPerM
     };
   }
 
@@ -141,9 +162,9 @@
     prefillTps: prefillTps,
     ttftMinutes: ttftMinutes,
     annualElecUSD: annualElecUSD,
-    tokensPerYear: tokensPerYear,
     localCostPerM: localCostPerM,
     breakevenYears: breakevenYears,
+    hostedUsdPerM: hostedUsdPerM,
     evaluate: evaluate
   };
 });

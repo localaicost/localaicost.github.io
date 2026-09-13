@@ -100,9 +100,15 @@
           <option value="128">128K</option><option value="256">256K</option>
           <option value="512">512K</option><option value="1000">1M</option>
         </select></label>
+      <label>Hosted in (USD / M tok) <input id="u_hosted_in" type="number" step="0.01"></label>
+      <label>Cache discount (%) <input id="u_cache_disc" type="number" step="1" min="0" max="100" value="0"></label>
+      <label>Cache misses (%) <input id="u_cache_miss" type="number" step="1" min="0" max="100" value="1"></label>
       <label>Hosted out (USD / M tok) <input id="u_hosted" type="number" step="0.01"></label>
+      <label>Agent turns / week <input id="u_turns" type="number" step="100" min="0" value="6500"></label>
+      <label>Response tokens / turn <input id="u_out_turns" type="number" step="50" min="1" value="650"></label>
+      <label>Tool output tokens / turn <input id="u_tool_turns" type="number" step="50" min="0" value="1350"></label>
       <label>Measured t/s (override, blank = estimate) <input id="u_tps" type="number" step="1"></label>
-      <div class="note">t/s override applies to every card row. Working context and hosted out
+      <div class="note">t/s override applies to every card row. Working context and hosted rates
       are prefilled from the model preset — edit for your real values.</div>
     </fieldset>
   </div>
@@ -159,6 +165,8 @@ const applyModel = () => {
   $('m_bpw').value = d.bytesPerWeight;  // preset quant; user can override after
   if (!$('u_ctx').querySelector(`option[value="${d.contextK}"]`)) $('u_ctx').add(new Option(d.contextK + 'K', d.contextK));
   $('u_ctx').value = d.contextK;  // model's default working context; user can change
+  $('u_hosted_in').value = $('u_hosted_in').defaultValue = d.hostedInUsdPerM;
+  $('u_cache_disc').value = $('u_cache_disc').defaultValue = d.hostedCacheDiscPct;
   $('u_hosted').value = $('u_hosted').defaultValue = d.hostedUsdPerM;  // each model has its own API price
   $('m_note').textContent = d.note;
 };
@@ -193,7 +201,10 @@ function curModel() {
            bytesPerWeight:num('m_bpw'), kvPerKGB:d.kvPerKGB,
            kvScale:parseFloat($('m_kvq').value), maxContextK:d.maxContextK ?? d.contextK }; }
 function curUsage() { return { hoursPerDay:Math.min(Math.max(num('u_hours'), 0), 168) / 7, usdPerKwh:Math.max(num('u_kwh'), 0), contextK:num('u_ctx'),
-  hostedUsdPerM:Math.max(num('u_hosted'), 0) }; }
+  hostedInUsdPerM:Math.max(num('u_hosted_in'), 0), hostedCacheDiscPct:Math.min(Math.max(num('u_cache_disc'), 0), 100),
+  cacheMissPct:Math.min(Math.max(num('u_cache_miss'), 0), 100), toolTokensPerTurn:Math.max(num('u_tool_turns'), 0),
+  hostedUsdPerM:Math.max(num('u_hosted'), 0), turnsPerDay:Math.max(num('u_turns'), 0) / 7,
+  outTokensPerTurn:Math.max(num('u_out_turns'), 1) }; }
 function render() {
   const tpsOverride = $('u_tps').value !== '' ? num('u_tps') : undefined;
   const model = curModel();
@@ -220,7 +231,7 @@ function render() {
 }
 
 function renderStrip(id) {
-  const c = CARDS.find(x => x.id === id), r = results[id], hosted = usage.hostedUsdPerM;
+  const c = CARDS.find(x => x.id === id), r = results[id], hosted = r.hostedUsdPerM;
   const [cls, label] = BADGE[r.verdict];
   $('strip').style.display = 'block';
   $('strip').innerHTML = `
@@ -229,10 +240,10 @@ function renderStrip(id) {
       ${cell('VRAM used', vramText(r, c))}
       ${cell('Net hardware (' + G.buyHorizonYears + ' y)', '$' + f(r.netHardwareUSD, 0))}
       ${cell('Electricity / year', '$' + f(r.elecAnnualUSD, 0))}
-      ${cell('Output / year', f(r.tokensPerYear / 1e6, 0) + ' M tok')}
+      ${cell('Output / year', f(r.outTokensPerYear / 1e6, 0) + ' M tok')}
       ${G.holdYears.map(y => cell('Local $/M — ' + y + ' y', '$' + f(r.localCostPerM[y], 2),
           r.localCostPerM[y] < hosted)).join('')}
-      ${cell('Hosted bar', '$' + f(hosted, 2) + '/M')}
+      ${cell('Hosted $/M (incl. input)', '$' + f(hosted, 2) + '/M')}
     </div>
     <div class="reasons">${r.reasons.length ? r.reasons.map(x => '• ' + x).join('<br>')
       : 'All gates passed.'}
@@ -257,10 +268,13 @@ const TIER = { 3: 'new', 5: 'mid cycle', 8: 'old' };
 $('accuracy_body').innerHTML = `
   <p><b>Formulas</b> — fit: weights + KV (working context, capped at the model's max supported context) × KV-cache precision (FP8 = ½ of bf16) + ${G.overheadGB} GB vs VRAM ·
   decode t/s: bandwidth ÷ (active × bytes/weight) × ${G.decodeEffPct}% ·
-  prefill: TFLOPS × ${G.prefillEffPct}% ÷ (2×active) · break-even: price×(1−${G.buyHorizonYears} y resale) ÷ (annual hosted cost
-  (t/s × 3600 × h/week ÷ 7 × 365 × $/M ÷ 10⁶) − annual electricity)</p>
+  prefill: TFLOPS × ${G.prefillEffPct}% ÷ (2×active) ·
+  hosted $/M out: out + (in×(response + tool) + in×(1 − cache disc×(1 − misses))×(context×10³ ÷ 2 − response − tool)) ÷ response ·
+  output / year: turns/week ÷ 7 × response × 365 ·
+  electricity: idle 24/7 + TDP for busy hours (turns × (response ÷ decode t/s + (response + tool) ÷ prefill t/s)) ·
+  break-even: price×(1−${G.buyHorizonYears} y resale) ÷ (output / year × hosted $/M ÷ 10⁶ − annual electricity)</p>
   <p><b>Gates</b> — per card, in order: fit → decode ≥ ${G.decodeTpsMin} t/s → TTFT ≤ ${G.ttftFailMin} min
-  (warn &gt; ${G.ttftWarnMin}) → break-even ≤ ${G.buyHorizonYears} y = BUY</p>
+  (warn &gt; ${G.ttftWarnMin}) → busy hours ≤ usage hours → break-even ≤ ${G.buyHorizonYears} y = BUY</p>
   <p><b>Resale</b> — ${pct(G.depreciationPerYear)}/yr depreciation, not measured:
   ${G.holdYears.map(y => `${pct(LLMEcon.resaleFraction(y))} back after ${y} y (${TIER[y]})`).join(', ')}.
   Local $/M columns use the matching resale</p>

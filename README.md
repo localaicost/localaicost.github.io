@@ -24,16 +24,23 @@ Gates run in series; failing one sets the verdict (break-even and $/M are still 
 2. Usability — decode ≥ 5 t/s; first token (working context)
    ≤ 30 min prefill, warn above 5 min. Rationale: slow decode is un-interactive;
    nobody waits 30 min for an agent to start working.
-3. Economics — break-even = `price × (1 − 0.75³)` ÷ (annual hosted-dollar value
-   of the tokens you actually generate − annual electricity). `BUY` if ≤ 3 years,
-   `RENT` otherwise.
+3. Capacity — busy hours per day ≤ usage hours per day, where busy hours =
+   `turns × (response ÷ decode t/s + (response + tool output) ÷ prefill t/s)`.
+4. Economics — break-even = `price × (1 − 0.75³)` ÷ (annual hosted-dollar value
+   of the workload's output (input-loaded, see Accuracy) − annual
+   electricity). `BUY` if ≤ 3 years, `RENT` otherwise.
 
 Verdicts: `BUY` / `RENT` / `NO_FIT` / `TOO_SLOW` (shown as "NO FIT" / "TOO SLOW") +
 one-line reasons.
 
-Working context is the worst-case prompt fill — the agent harness's system prompt included.
-It is capped at the model's max supported context (preset `maxContextK`, defaults to
-`contextK`).
+Working context is the prompt fill a session reaches — the agent harness's system prompt
+included. Presets default to 256K; pick another value for shorter or longer sessions. It is
+capped at the model's max supported context (preset `maxContextK`, defaults to `contextK`).
+
+The workload is set by agent turns / week (default 6,500), response tokens / turn (default 650)
+and tool output tokens / turn (default 1,350), not by the card's speed. Cache misses default to
+1%. The defaults come from a heavy agent user: the busiest full work week for turns, per-request
+means for the rest. Card t/s feeds the usability and capacity gates and the busy hours.
 
 ## Accuracy
 
@@ -53,9 +60,16 @@ Everything is an **estimate for gating**, not a performance prediction:
   then resold. Hardware tiers by age: new 2–3 y, mid cycle 3–5 y, old 5–8 y.
 - Resale follows 25%/yr depreciation: 42% back after 3 y, 24% after 5 y, 10% after 8 y.
   The strip's local $/M columns (3 / 5 / 8 y) each use their own resale.
-- Electricity assumes the box idles 24/7 and runs at TDP only during usage hours.
-- **Money is per output token.** Hosted input is priced separately, so input-heavy agent
-  workloads skew the comparison.
+- Electricity assumes the box idles 24/7 and runs at TDP for the busy hours only (decode +
+  fresh-input prefill, capped at usage hours). Local prefix cache doesn't expire, so a hosted
+  cache miss costs no local prefill.
+- **Hosted $/M is input-loaded:**
+  `out + (in×(O+T) + in×(1 − cache disc×(1 − misses))×(C/2−O−T)) / O` per M output.
+  One agent turn re-sends the context so far as input: the fresh part — the last response O
+  plus tool output T — bills at `in`, the repeated prefix at the cache price, except the
+  missed share (idle gaps past the cache TTL), which bills at `in`. Context grows from 0 to C
+  over a session, so the average turn carries C/2; the fit and TTFT gates use full C.
+  C/2 ≤ O + T → the cache term is 0. Not modeled: one-time cache writes.
 - Batch 1 only — no multi-user serving, no prefill/decode disaggregation.
 
 Editable in the UI: card price, quant, KV cache precision, and the usage fields.
@@ -79,11 +93,11 @@ Models: GLM-5.3-Flash, DeepSeek-V4-Flash-0731, Qwen3.8-Flash-Next, Qwen3.8-27B.
   layers hold a constant-size state, not per-token KV. MHA: `kv_heads = num_attention_heads`;
   GQA: `num_key_value_heads`; MLA/latent-compressed: derive from the latent dim. Halve it for
   fp8 KV.
-- `contextK` (default working context, K tokens): the model's advertised context; prefilled
-  into the Working context dropdown on model select. A value missing from the dropdown
-  (128/256/512/1000) gets its own option added.
-- `maxContextK` (optional): the model's max supported context, caps the dropdown. Declare it
-  for models that extend beyond the advertised default (256K default, 1M max).
+- `contextK` (default working context, K tokens): 256; prefilled into the Working context
+  dropdown on model select. A value missing from the dropdown (128/256/512/1000) gets its own
+  option added.
+- `maxContextK`: the model's max supported context, caps the dropdown. Declare it whenever it
+  exceeds `contextK`.
 - MoE: `totalParamsB` = everything that must be VRAM-resident (all experts);
   `activeParamsB` = routed per token. Tables deliberately offloaded to system RAM go in the
   note, not in `totalParamsB`.

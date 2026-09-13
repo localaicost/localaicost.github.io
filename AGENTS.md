@@ -23,6 +23,8 @@ first: formulas, gate order, accuracy caveats and presets live there.
 - A card `note` adds facts the columns don't show: FP8/FP4 support, cooling, form factor,
   software limits. No market commentary, nothing the table or footer already says.
 - Keep the measured-t/s override prominent (README → Accuracy, MoE caveat).
+- Formula text lives in four places: `calc.js`, README → Accuracy, AGENTS.md → Decisions,
+  `index.html` `accuracy_body`. Change all four together.
 - No build, no dependencies, no frameworks.
 - No decision dates in AGENTS.md — git history has them.
 - Live market price feeds are planned but unbuilt — don't scaffold for them.
@@ -37,10 +39,11 @@ Made on purpose — don't reverse them silently.
 - **Prefill is a disqualifier, not a cost.** Slow decode or TTFT ⇒ `TOO_SLOW`, never a $ penalty.
 - **Failed-gate rows still show t/s, break-even and $/M**. The badge carries
   the verdict; don't blank the numbers.
-- **Working context = worst-case prompt fill, system prompt included** — no separate system
-  prompt input; it double-counted tokens already inside the context. The dropdown caps at the
-  model's max supported context (`maxContextK`, defaults to advertised `contextK`); presets
-  with extendable context declare it.
+- **Working context = a session's prompt fill, system prompt included; presets default to
+  256K** — no separate system prompt input; it double-counted tokens already inside the
+  context. Advertised 1M defaults overstated an agent session; 128K understated a heavy user's
+  (mean context per request 113K → C ≈ 225K). The dropdown caps at `maxContextK` (defaults to
+  `contextK`); presets declare it.
 - **Presets are current-gen (2026) only — check the HF repo `createdAt` before adding a
   model.** Removed for
   age: Qwen3 30B-A3B / 235B-A22B, GLM-4.5-Air (2025-07), Kimi-Linear-48B (2025-10),
@@ -61,6 +64,28 @@ Made on purpose — don't reverse them silently.
 - **Power circuits are not modeled** — assume anyone running a multi-GPU box has 230 V.
 - **Working context and hosted $/M are prefilled per model preset** and stay
   user-editable; the earlier single $0.47 default misled for models like Qwen3.8-27B at $3/M.
-- **KV cache precision is a dropdown (bf16 default, fp8 = ½); presets keep the model-default
-  context**. First kept unmodeled, added on request — it flips exactly one
-  verdict: Qwen3.8-27B on the 5090 at 256K (35.0 → 26.6 GB).
+- **KV cache precision is a dropdown (bf16 default, fp8 = ½)**. First kept unmodeled, added
+  on request — at 256K it flips Qwen3.8-27B on the 5090 (35.0 → 26.6 GB).
+- **Hosted $/M is input-loaded:** `out + (in×(O+T) + in×(1−disc×(1−miss))×(C/2−O−T))/O` —
+  per turn the fresh input = last response O + tool output T, the cache reads ≈
+  average session context C/2−O−T (context grows 0 → C), a cache-miss % of them at
+  full `in`. Full C stays for the fit and TTFT gates; C−O for cost overstated hosted ~2×.
+  Tool output and misses were first left out; at DeepSeek's 97% discount the cache term no
+  longer dominates, and leaving them out understated hosted 25–50%. No explicit input:output
+  ratio knob, no cache writes. Presets carry `hostedInUsdPerM` + `hostedCacheDiscPct`.
+- **Workload = agent turns / week × response tokens, not card t/s × usage hours.** Hosted spend
+  from card throughput grew with card speed (B200 × Qwen3.8-Flash ≈ $44K/y hosted). Usage hours
+  cap the busy hours (`TOO_SLOW` above them).
+- **Usage defaults come from a heavy agent user, not medians or P90** — buyers of these cards
+  are heavy users. From 13.5K logged agent requests (Pro plan): per-request means of 654
+  output tokens, 1,335 fresh tokens beyond the response on non-miss requests, misses (cache
+  write ≥ ½ context) 1% of prefix tokens under a 1 h cache TTL — stable across work weeks.
+  Turns = the busiest full work week, 6,500 (other: 5,357); the all-days mean (3,250) counted
+  vacation days, and Pro session limits capped both weeks. Means sum to the yearly spend;
+  medians undercount it. P90 per-request fields don't co-occur, and a P90 day annualized
+  ~doubles spend, pushing verdicts toward BUY.
+- **Max-plan parallel-agent volume (~4.5× Pro, ~29K turns/week) is not the default.** It is
+  an unverified extrapolation, and serving it needs parallel requests; the model is batch 1.
+- **Electricity bills TDP for busy hours, not usage hours** — busy = decode + fresh-input
+  prefill for the turns. Billing all usage hours overstated local cost (5090 × Qwen3.8-27B:
+  $168 → $45/y, break-even 6.3 → 4.0 y).
