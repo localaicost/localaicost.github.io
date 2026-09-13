@@ -102,12 +102,12 @@
     "id": "h100nvl",
     "name": "NVIDIA H100 NVL 94 GB (Hopper)",
     "vramGB": 94,
-    "bandwidthGBs": 3900,
-    "tflops": 835,
+    "bandwidthGBs": 3950,
+    "tflops": 965,
     "tdpW": 400,
     "idleW": 50,
     "priceUSD": 40000,
-    "note": "TFLOPS is an estimate. Passive heatsink: needs server-chassis airflow. FP8 yes, FP4 no. An NVLink bridge links 2 or 4 cards."
+    "note": "Passive heatsink: needs server-chassis airflow. FP8 yes, FP4 no. An NVLink bridge links 2 or 4 cards."
   },
   {
     "id": "h200",
