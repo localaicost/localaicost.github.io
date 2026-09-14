@@ -44,17 +44,6 @@
     "note": "Native FP4. 575 W goes through one 12V-2x6 connector, which has melting reports. NVIDIA recommends a 1000 W PSU."
   },
   {
-    "id": "2x4090",
-    "name": "2× RTX 4090 (PCIe, tensor-parallel)",
-    "vramGB": 48,
-    "bandwidthGBs": 1500,
-    "tflops": 600,
-    "tdpW": 950,
-    "idleW": 50,
-    "priceUSD": 3200,
-    "note": "Bandwidth (≈ 75% of 2×1008 after PCIe overhead), TFLOPS and power are estimates. GeForce drivers block GPU peer-to-peer, so tensor-parallel traffic goes through the CPU."
-  },
-  {
     "id": "spark",
     "name": "NVIDIA DGX Spark 128 GB",
     "vramGB": 128,
