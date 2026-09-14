@@ -38,7 +38,8 @@ Made on purpose — don't reverse them silently.
   No bandwidth/$ or memory/$ columns — the verdict, t/s, TTFT and break-even columns answer them.
 - **Decode floor is 10 t/s, not 5.** At 5 t/s a card passed the usability gate while unable
   to run an agent's turns at a usable pace. The same floor sets the multi-agent count.
-- **Prefill is a disqualifier, not a cost.** Slow decode or TTFT ⇒ `TOO_SLOW`, never a $ penalty.
+- **Prefill is a disqualifier, not a cost.** Slow decode, TTFT or weekly turns ⇒
+  `TOO_SLOW`, never a $ penalty.
 - **Failed-gate rows still show t/s, break-even and $/M**. The badge carries
   the verdict; don't blank the numbers.
 - **Working context = a session's prompt fill, system prompt included; presets default to
@@ -83,8 +84,13 @@ Made on purpose — don't reverse them silently.
   "turns / week × response tokens"). A turns input plus the parallel checkbox were too many
   variables; the table now answers how many turns a card produces with one agent and with its
   most agents. Usage hours mean the card is busy for all of them, not idle; hosted value grows
-  with card speed (B200 × Qwen3.8-Flash ≈ $44K/y hosted), and too few usage hours drop a card
-  to `RENT`. Both break-evens are shown; the verdict uses the agents'. The capacity gate is gone.
+  with card speed (B200 × Qwen3.8-Flash ≈ $44K/y hosted). Too few usage hours drop a card to
+  `RENT` and, once 1-agent turns fall under the floor, to `TOO_SLOW`. Both break-evens are
+  shown; the verdict uses the agents'. The old
+  capacity gate (turns vs a turns input) is gone; its successor is the fixed turns/week floor —
+  see Turns need.
+- **Usage hours default to 30 h/week** — hours the card runs agents under load, not the user's
+  work week: a 40–50 h work week minus local downtime between agent runs.
 - **Usage defaults come from a heavy agent user, not medians or P90** — buyers of these cards
   are heavy users. From 13.5K logged agent requests (Pro plan): per-request means of 654
   output tokens, 1,335 fresh tokens beyond the response on non-miss requests, misses (cache
@@ -92,6 +98,12 @@ Made on purpose — don't reverse them silently.
   across work weeks.
   Means sum to the yearly spend; medians undercount it. P90 per-request fields don't co-occur,
   and a P90 day annualized ~doubles spend, pushing verdicts toward BUY.
+- **Turns need: defaults target ~30K turns/week (≈ Claude Code 5x; Pro limits hit at 6–7K);
+  heavy multi-agent up to ~60K (20x). The floor is a gate: 1-agent turns/week < 7K ⇒
+  `TOO_SLOW`, with a TTFT warning still added.** 7K = one Pro plan user's week: full-price
+  buyers don't buy to match a Pro plan, so passing the floor still means slow. Extrapolated —
+  replace when logged session data contradicts it. Page (`accuracy_body`) and README state the
+  same numbers; change together.
 - **Agents = the most S ≤ sessions fit with t/s per agent ≥ the decode floor** — no agent count
   or parallel checkbox input. Sessions fit = `floor((VRAM − weights − 2 GB) ÷ KV per session)`
   — the 2 GB is engine-level. Turns / day at S = `usage h × 3600 ÷ ((O+T) ÷ prefill t/s + O ÷

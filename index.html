@@ -189,7 +189,7 @@ const BADGE = { BUY:['ok','BUY'], RENT:['rent','RENT'], NO_FIT:['bad',"NO FIT"],
 const f = (x, d=1) => (x == null || !isFinite(x)) ? '∞'
   : x.toLocaleString('en-US', { maximumFractionDigits: d });
 const vramText = (r, c) => f(r.totalGB) + ' / ' + c.vramGB;
-const turnsK = x => f(x / 1000) + 'K';
+const turnsK = x => f(Math.floor(x / 100) / 10) + 'K';   // floor: 6,985 shows 6.9K, not the 7K floor
 const cell = (k, v, hl) => `<div class="cell"><div class="k">${k}</div><div class="v${hl ? ' hl' : ''}">${v}</div></div>`;
 let selectedCard = CARDS[0].id;   // strip shows the top card until you pick another row
 const results = {};               // card id → last evaluate() result
@@ -225,7 +225,9 @@ function render() {
     tt.textContent = f(r.ttftMin);
     tt.className = 'ttft' + (r.ttftMin > G.ttftWarnMin ? ' warn' : '');
     row.querySelector('.agents').textContent = r.agents + ' / ' + r.sessions;
-    row.querySelector('.turns').textContent = turnsK(r.turnsPerWeek) + ' / ' + turnsK(r.turnsPerWeekMulti);
+    const turns = row.querySelector('.turns');
+    turns.textContent = turnsK(r.turnsPerWeek) + ' / ' + turnsK(r.turnsPerWeekMulti);
+    turns.className = 'turns' + (r.turnsPerWeek > 0 && r.turnsPerWeek < G.turnsPerWeekMin ? ' warn' : '');
     const be = row.querySelector('.be');
     be.textContent = f(r.breakevenYears1) + ' / ' + f(r.breakevenYears);
     be.className = 'be' + (r.breakevenYears > G.buyHorizonYears || r.breakevenYears1 > G.buyHorizonYears ? ' warn' : '');
@@ -283,11 +285,15 @@ $('accuracy_body').innerHTML = `
   electricity: idle 24/7 + TDP for all usage hours ·
   break-even: price×(1−${G.buyHorizonYears} y resale) ÷ (output / year × hosted $/M ÷ 10⁶ − annual electricity), for 1 agent and for the agents</p>
   <p><b>Gates</b> — per card, in order: fit (≥ 1 session) → decode ≥ ${G.decodeTpsMin} t/s (1 agent) → TTFT ≤ ${G.ttftFailMin} min
-  (warn &gt; ${G.ttftWarnMin}) → break-even (agents) ≤ ${G.buyHorizonYears} y = BUY · The card is assumed to run at capacity
+  (warn &gt; ${G.ttftWarnMin}) → 1-agent turns/week ≥ ${G.turnsPerWeekMin / 1000}K →
+  break-even (agents) ≤ ${G.buyHorizonYears} y = BUY · The card is assumed to run at capacity
   for all usage hours · Batched decode assumes lockstep agents, an optimistic bound; prefill does not scale with batching</p>
   <p><b>Resale</b> — ${pct(G.depreciationPerYear)}/yr depreciation, not measured:
   ${G.holdYears.map(y => `${pct(LLMEcon.resaleFraction(y))} back after ${y} y (${TIER[y]})`).join(', ')}.
   Local $/M columns use the matching resale</p>
+  <p><b>Turns need</b> — defaults target ~30K turns/week (≈ Claude Code 5x; Pro limits hit at 6–7K); heavy multi-agent up to
+  ~60K (20x). The ${G.turnsPerWeekMin / 1000}K floor is one Pro plan user's week: a card that clears it is
+  still slow for a full-price buyer. Extrapolated estimate</p>
   <p><b>Data</b> — prices are street estimates; estimated specs are flagged in the row detail note;
   idle power is an estimate on every card</p>`;
 

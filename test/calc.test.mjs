@@ -68,14 +68,16 @@ const spark = { vramGB: 128, bandwidthGBs: 273, tflops: 119, tdpW: 140, idleW: 1
 let r = C.evaluate({ ...r3090, bandwidthGBs: 50 }, m70, usage);
 assert.equal(r.verdict, 'NO_FIT');
 assert.equal(r.agents, 0, `agents ${r.agents}`);
-// FIT + BUY, 27B on the 3090 at 32K, 4 h/day:
+// 27B on the 3090 at 32K, 4 h/day — fits and decodes fine, but one agent's 4,929
+// turns/week is under the 7K floor → TOO_SLOW; failed-gate rows still carry the numbers:
 // one agent: 2512 tok ÷ 920.4 t/s prefill + 512 ÷ 28.89 t/s decode = 20.45 s/turn → 704 turns/day
 // = 4,929/week → 131.6 M tok/y × $7.363/M = $968.8/y hosted − $83.22/y electricity (TDP all
 // 4 h) against net $547 → break-even 0.62 y
 // VRAM holds 2 sessions, both ≥ 10 t/s: 28.89 × (16.2 + 1.048) ÷ (16.2 + 2 × 1.048) = 27.23 t/s;
 // 2512 ÷ 920.4 + 512 ÷ (2 × 27.23) = 12.13 s/turn → 8,310/week → break-even 0.35 y
 r = C.evaluate(r3090, m27, usage);
-assert.equal(r.verdict, 'BUY');
+assert.equal(r.verdict, 'TOO_SLOW');
+assert.ok(r.reasons[0].includes('under the 7K floor'), r.reasons[0]);
 assert.equal(r.sessions, 2, `sessions ${r.sessions}`);
 assert.equal(r.agents, 2, `agents ${r.agents}`);
 assert.ok(Math.abs(r.tpsMulti - 27.234) < 0.001, `tpsMulti ${r.tpsMulti}`);
@@ -93,22 +95,33 @@ r = C.evaluate(spark, m14, usage);
 assert.equal(r.sessions, 44, `sessions ${r.sessions}`);
 assert.equal(r.agents, 5, `agents ${r.agents}`);
 assert.ok(Math.abs(r.tpsMulti - 10.549) < 0.001, `tpsMulti ${r.tpsMulti}`);
-// verdict follows multi-agent break-even: PRO 6000 × 27B at 0.5 h/day, 37 agents → 6.0 y RENT;
-// one agent alone would take 45.6 y
-r = C.evaluate(pro, m27, { ...usage, hoursPerDay: 0.5 });
+// verdict follows multi-agent break-even: PRO 6000 × 27B at 3 h/day, $0.47/$0.15 hosted,
+// 37 agents → 4.23 y RENT; one agent alone takes 36.8 y, and its 7,540 turns/week clear the floor
+r = C.evaluate(pro, m27, { ...usage, hostedUsdPerM: 0.47, hostedInUsdPerM: 0.15, hoursPerDay: 3 });
 assert.equal(r.verdict, 'RENT');
 assert.equal(r.agents, 37, `agents ${r.agents}`);
-assert.ok(Math.abs(r.breakevenYears - 6.018) < 0.001, `breakeven ${r.breakevenYears}`);
-assert.ok(Math.abs(r.breakevenYears1 - 45.563) < 0.001, `breakeven 1 ${r.breakevenYears1}`);
+assert.ok(Math.abs(r.breakevenYears - 4.232) < 0.001, `breakeven ${r.breakevenYears}`);
+assert.ok(Math.abs(r.breakevenYears1 - 36.755) < 0.001, `breakeven 1 ${r.breakevenYears1}`);
 assert.ok(r.reasons[0].includes('at 37 agents'), r.reasons[0]);
-// a 21 GB 3090 holds one 27B session → singular "agent"
-r = C.evaluate({ ...r3090, vramGB: 21 }, m27, { ...usage, hoursPerDay: 0.5 });
+// a 21 GB 3090 holds one 27B session → singular "agent"; 6 h/day = 7,393 turns/week, 4.6 y RENT
+r = C.evaluate({ ...r3090, vramGB: 21 }, m27, { ...usage, hostedUsdPerM: 0.3, hostedInUsdPerM: 0.1, hoursPerDay: 6 });
+assert.equal(r.agents, 1, `agents ${r.agents}`);
 assert.ok(r.reasons[0].includes('at 1 agent,'), r.reasons[0]);
-// 0.1 h/day: one agent never covers electricity; 2 agents take ~41.6 y
+// turns-floor failure keeps the TTFT warning: 48 GB card at 60 TFLOPS, 128K → 5.5 min, 4.2K/week
+r = C.evaluate({ ...r3090, vramGB: 48, tflops: 60 }, m27, { ...usage, contextK: 128 });
+assert.equal(r.verdict, 'TOO_SLOW');
+assert.ok(r.reasons[0].includes('under the 7K floor'), r.reasons[0]);
+assert.ok(r.reasons[1].includes('min warn'), r.reasons[1]);
+// just under the floor: 6,985 turns/week prints ~6.9K, never the 7K floor itself
+r = C.evaluate(r3090, m27, { ...usage, hoursPerDay: 4 * 6985 / 4928.5138 });
+assert.ok(r.reasons[0].startsWith('Only ~6.9K'), r.reasons[0]);
+// 0.1 h/day: below the floor → TOO_SLOW; one agent never covers electricity (be1 = ∞)
+// and the 2-agent break-even (~41.63 y) is still returned
 r = C.evaluate(r3090, m27, { ...usage, hoursPerDay: 0.1 });
-assert.equal(r.verdict, 'RENT');
+assert.equal(r.verdict, 'TOO_SLOW');
+assert.ok(r.reasons[0].includes('under the 7K floor'), r.reasons[0]);
 assert.equal(r.breakevenYears1, Infinity);
-assert.ok(r.reasons[0].includes('Break-even ~41.6 y'), r.reasons[0]);
+assert.ok(Math.abs(r.breakevenYears - 41.632) < 0.001, `breakeven ${r.breakevenYears}`);
 // no usage hours → one reason, not "never breaks even" on top
 r = C.evaluate(r3090, m27, { ...usage, hoursPerDay: 0 });
 assert.deepEqual(r.reasons, ['No usage hours — nothing to amortize against.']);

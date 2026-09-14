@@ -14,6 +14,7 @@
     decodeTpsMin: 10,     // TOO_SLOW below
     ttftWarnMin: 5,       // warn above
     ttftFailMin: 30,      // TOO_SLOW above
+    turnsPerWeekMin: 7000, // TOO_SLOW below (1 agent; one Pro plan user's week)
     buyHorizonYears: 3,   // break-even beyond this → rent; also the resale point
     overheadGB: 2,        // CUDA context + activation margin
     decodeEffPct: 50,     // % of bandwidth-bound decode t/s reached
@@ -137,15 +138,21 @@
     } else if (ttft > GATES.ttftFailMin) {
       verdict = 'TOO_SLOW';
       reasons.push(promptK + 'K prefill (working context) takes ~' + ttft.toFixed(0) + ' min (> ' + GATES.ttftFailMin + ' min floor).');
+    } else if (turns1 > 0 && turns1 * 7 < GATES.turnsPerWeekMin) {
+      verdict = 'TOO_SLOW';
+      // floor to 0.1K so a value just under the floor never prints as the floor
+      reasons.push('Only ~' + Math.floor(turns1 * 7 / 100) / 10 + 'K turns/week for 1 agent in the usage hours — under the ' +
+        GATES.turnsPerWeekMin / 1000 + 'K floor (one Pro plan user).');
     } else {
       verdict = (be <= GATES.buyHorizonYears) ? 'BUY' : 'RENT';
       if (verdict === 'RENT')
         reasons.push(outMulti <= 0 ? 'No usage hours — nothing to amortize against.'
           : isFinite(be) ? 'Break-even ~' + be.toFixed(1) + ' y at ' + agents + (agents === 1 ? ' agent' : ' agents') + ', past the ' + GATES.buyHorizonYears + ' y horizon.'
           : 'Never breaks even — electricity costs at least what the hosted tokens would.');
-      if (ttft > GATES.ttftWarnMin)
-        reasons.push('First token ~' + ttft.toFixed(1) + ' min (> ' + GATES.ttftWarnMin + ' min warn) for a ' + promptK + 'K prompt.');
     }
+    // the TTFT warning also rides on a turns-floor failure
+    if (fits && tps >= GATES.decodeTpsMin && ttft > GATES.ttftWarnMin && ttft <= GATES.ttftFailMin)
+      reasons.push('First token ~' + ttft.toFixed(1) + ' min (> ' + GATES.ttftWarnMin + ' min warn) for a ' + promptK + 'K prompt.');
 
     GATES.holdYears.forEach(function (y) {
       costPerM[y] = localCostPerM(card.priceUSD, elec, outMulti, y);
