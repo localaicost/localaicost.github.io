@@ -46,7 +46,7 @@ included. Presets default to 256K; pick another value for shorter or longer sess
 capped at the model's max supported context (preset `maxContextK`, defaults to `contextK`).
 
 A turn is set by response tokens / turn (default 650) and tool output tokens / turn (default
-1,350); cache misses default to 1%. The defaults are per-request means from a heavy agent user.
+1,350); cache misses default to 2%. The defaults are per-request means from a heavy agent user.
 The number of turns comes from the card's speed and the usage hours.
 
 ## Accuracy

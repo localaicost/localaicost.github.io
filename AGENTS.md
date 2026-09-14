@@ -88,7 +88,8 @@ Made on purpose — don't reverse them silently.
 - **Usage defaults come from a heavy agent user, not medians or P90** — buyers of these cards
   are heavy users. From 13.5K logged agent requests (Pro plan): per-request means of 654
   output tokens, 1,335 fresh tokens beyond the response on non-miss requests, misses (cache
-  write ≥ ½ context) 1% of prefix tokens under a 1 h cache TTL — stable across work weeks.
+  write ≥ ½ context) 1% of prefix tokens under a 1 h cache TTL (miss default 2%) — stable
+  across work weeks.
   Means sum to the yearly spend; medians undercount it. P90 per-request fields don't co-occur,
   and a P90 day annualized ~doubles spend, pushing verdicts toward BUY.
 - **Agents = the most S ≤ sessions fit with t/s per agent ≥ the decode floor** — no agent count
