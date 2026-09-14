@@ -31,7 +31,7 @@ Gates run in series; failing one sets the verdict (break-even and $/M are still 
    the usage hours. Raise usage hours to see whether a longer wait clears it.
 4. Economics — break-even = `price × (1 − 0.75³)` ÷ (annual hosted-dollar value
    of the card's output (input-loaded, see Accuracy) − annual
-   electricity). `BUY` if ≤ 3 years at the agents' capacity, `RENT` otherwise.
+   electricity). `PASS` if ≤ 3 years at the agents' capacity, `RENT` otherwise.
 
 Capacity — the turns the card produces in the usage hours, shown for one agent and for the
 most agents it serves:
@@ -42,7 +42,7 @@ most agents it serves:
   `floor((VRAM − weights − 2 GB) ÷ KV per session)`.
 - Break-even is shown for both; the verdict uses the agents'.
 
-Verdicts: `BUY` / `RENT` / `NO_FIT` / `TOO_SLOW` (shown as "NO FIT" / "TOO SLOW") +
+Verdicts: `PASS` / `RENT` / `NO_FIT` / `TOO_SLOW` (shown as "NO FIT" / "TOO SLOW") +
 one-line reasons.
 
 Working context is the prompt fill a session reaches — the agent harness's system prompt

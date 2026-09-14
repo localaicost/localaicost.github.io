@@ -57,7 +57,7 @@ Made on purpose — don't reverse them silently.
 - **Server cards are single cards.** Dropped: H100 SXM (the H100 PCIe variant covers
   it) and the 4×H200 2U composite (a full-box verdict doesn't parse against per-card usage).
   B200 / B300 have no PCIe variant; they stay as SXM for comparison.
-- **Resale = declining balance at 25%/yr, card held for the BUY horizon**. Businesses don't
+- **Resale = declining balance at 25%/yr, card held for the PASS horizon**. Businesses don't
   resell hardware at 18 months (often never), so don't model a 1 y hold.
   Replaced a uniform 40% framed as 1 y resale.
 - **Break-even nets electricity out of hosted savings**.
@@ -97,7 +97,7 @@ Made on purpose — don't reverse them silently.
   write ≥ ½ context) 1% of prefix tokens under a 1 h cache TTL (miss default 2%) — stable
   across work weeks.
   Means sum to the yearly spend; medians undercount it. P90 per-request fields don't co-occur,
-  and a P90 day annualized ~doubles spend, pushing verdicts toward BUY.
+  and a P90 day annualized ~doubles spend, pushing verdicts toward PASS.
 - **Turns need: defaults target ~30K turns/week (≈ Claude Code 5x; Pro limits hit at 6–7K);
   heavy multi-agent up to ~60K (20x). The floor is a gate: 1-agent turns/week < 7K ⇒
   `TOO_SLOW`, with a TTFT warning still added.** 7K = one Pro plan user's week: full-price

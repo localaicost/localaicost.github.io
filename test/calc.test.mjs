@@ -147,11 +147,11 @@ assert.ok(Math.abs(r.tps - 20) < 1e-9);
 r = C.evaluate(r3090, m14, usage, 9);
 assert.equal(r.verdict, 'TOO_SLOW');
 assert.ok(r.reasons[0].includes('below the 10 t/s'), r.reasons[0]);
-// fp8 KV flips 5090 × 27B at 256K context: 35.0 GB (NO_FIT) → 26.6 GB (fits → BUY)
+// fp8 KV flips 5090 × 27B at 256K context: 35.0 GB (NO_FIT) → 26.6 GB (fits → PASS)
 r = C.evaluate(r5090, { ...m27, maxContextK: 256 }, { ...usage, contextK: 256 });
 assert.equal(r.verdict, 'NO_FIT');
 r = C.evaluate(r5090, { ...m27, maxContextK: 256, kvScale: 0.5 }, { ...usage, contextK: 256 });
-assert.equal(r.verdict, 'BUY');
+assert.equal(r.verdict, 'PASS');
 
 // presets: cards.json × models.json parse and evaluate to finite numbers
 const cards = require('../cards.json'), models = require('../models.json');

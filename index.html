@@ -185,7 +185,7 @@ tbody.innerHTML = CARDS.map(c => `
   </tr>`).join('');
 
 const G = LLMEcon.GATES;
-const BADGE = { BUY:['ok','BUY'], RENT:['rent','RENT'], NO_FIT:['bad',"NO FIT"], TOO_SLOW:['bad','TOO SLOW'] };
+const BADGE = { PASS:['ok','PASS'], RENT:['rent','RENT'], NO_FIT:['bad',"NO FIT"], TOO_SLOW:['bad','TOO SLOW'] };
 const f = (x, d=1) => (x == null || !isFinite(x)) ? '∞'
   : x.toLocaleString('en-US', { maximumFractionDigits: d });
 const vramText = (r, c) => f(r.totalGB) + ' / ' + c.vramGB;
@@ -286,7 +286,7 @@ $('accuracy_body').innerHTML = `
   break-even: price×(1−${G.buyHorizonYears} y resale) ÷ (output / year × hosted $/M ÷ 10⁶ − annual electricity), for 1 agent and for the agents</p>
   <p><b>Gates</b> — per card, in order: fit (≥ 1 session) → decode ≥ ${G.decodeTpsMin} t/s (1 agent) → TTFT ≤ ${G.ttftFailMin} min
   (warn &gt; ${G.ttftWarnMin}) → 1-agent turns/week ≥ ${G.turnsPerWeekMin / 1000}K →
-  break-even (agents) ≤ ${G.buyHorizonYears} y = BUY · The card is assumed to run at capacity
+  break-even (agents) ≤ ${G.buyHorizonYears} y = PASS · The card is assumed to run at capacity
   for all usage hours · Batched decode assumes lockstep agents, an optimistic bound; prefill does not scale with batching</p>
   <p><b>Resale</b> — ${pct(G.depreciationPerYear)}/yr depreciation, not measured:
   ${G.holdYears.map(y => `${pct(LLMEcon.resaleFraction(y))} back after ${y} y (${TIER[y]})`).join(', ')}.

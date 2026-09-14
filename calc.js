@@ -144,7 +144,7 @@
       reasons.push('Only ~' + Math.floor(turns1 * 7 / 100) / 10 + 'K turns/week for 1 agent in the usage hours — under the ' +
         GATES.turnsPerWeekMin / 1000 + 'K floor (one Pro plan user).');
     } else {
-      verdict = (be <= GATES.buyHorizonYears) ? 'BUY' : 'RENT';
+      verdict = (be <= GATES.buyHorizonYears) ? 'PASS' : 'RENT';
       if (verdict === 'RENT')
         reasons.push(outMulti <= 0 ? 'No usage hours — nothing to amortize against.'
           : isFinite(be) ? 'Break-even ~' + be.toFixed(1) + ' y at ' + agents + (agents === 1 ? ' agent' : ' agents') + ', past the ' + GATES.buyHorizonYears + ' y horizon.'
