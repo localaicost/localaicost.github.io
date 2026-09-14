@@ -16,7 +16,8 @@ first: formulas, gate order, accuracy caveats and presets live there.
 - `index.html` — UI (card table, model/usage controls, row detail strip), wiring.
 - `cards.json`, `models.json` — card and model presets; add one by appending an object.
   Units follow the field names in `calc.js` (`evaluate`).
-- `test/calc.test.mjs` — pins the formulas and gate order; checks every preset evaluates.
+- `test/calc.test.mjs` — pins the formulas and gate order; checks every preset evaluates and
+  every card fits at least one model at the lightest settings.
 
 ## Rules
 

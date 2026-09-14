@@ -174,4 +174,11 @@ for (const m of models) for (const c of cards) {
     assert.ok(Number.isFinite(r[k]), `${c.id} × ${m.id}: ${k} = ${r[k]}`);
 }
 
+// every card must fit at least one model at the lightest settings (128K = UI min, fp8 KV)
+for (const c of cards) {
+  const fitsAny = models.some(m =>
+    C.fitGB(m.totalParamsB, m.bytesPerWeight, m.kvPerKGB, 128, 0.5).totalGB <= c.vramGB);
+  assert.ok(fitsAny, `${c.id}: fits no model at 128K fp8 KV — a useless row`);
+}
+
 console.log('calc.js: all checks passed');
