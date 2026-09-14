@@ -88,6 +88,17 @@
     "note": "TFLOPS and power are estimates. macOS caps GPU memory at ~75% of RAM by default (raise with sysctl iogpu.wired_limit_mb). No CUDA. M5 GPU cores add neural accelerators."
   },
   {
+    "id": "v100",
+    "name": "NVIDIA Tesla V100 PCIe 16 GB (used)",
+    "vramGB": 16,
+    "bandwidthGBs": 897,
+    "tflops": 113,
+    "tdpW": 300,
+    "idleW": 25,
+    "priceUSD": 500,
+    "note": "Volta: no FP8 or FP4, first-gen tensor cores. No NVLink on the PCIe board. Driver support is legacy. 300 W on 2× 8-pin."
+  },
+  {
     "id": "h100pcie",
     "name": "NVIDIA H100 PCIe 80 GB (Hopper)",
     "vramGB": 80,
