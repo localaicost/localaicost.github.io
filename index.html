@@ -199,7 +199,7 @@ function curModel() {
   const d = curPreset();
   return { totalParamsB:d.totalParamsB, activeParamsB:d.activeParamsB,
            bytesPerWeight:num('m_bpw'), kvPerKGB:d.kvPerKGB,
-           kvScale:parseFloat($('m_kvq').value), maxContextK:d.maxContextK ?? d.contextK }; }
+           kvScale:parseFloat($('m_kvq').value), maxContextK:d.maxContextK }; }
 function curUsage() { return { hoursPerDay:Math.min(Math.max(num('u_hours'), 0), 168) / 7, usdPerKwh:Math.max(num('u_kwh'), 0), contextK:num('u_ctx'),
   hostedInUsdPerM:Math.max(num('u_hosted_in'), 0), hostedCacheDiscPct:Math.min(Math.max(num('u_cache_disc'), 0), 100),
   cacheMissPct:Math.min(Math.max(num('u_cache_miss'), 0), 100), toolTokensPerTurn:Math.max(num('u_tool_turns'), 0),
@@ -214,23 +214,20 @@ function render() {
     const card = { ...c, priceUSD: numVal(row.querySelector('.price').value, c.priceUSD) };
     const r = results[c.id] = LLMEcon.evaluate(card, model, usage, tpsOverride);
     const [cls, label] = BADGE[r.verdict];
-    const vram = row.querySelector('.vram');
-    vram.textContent = vramText(r, c);
-    vram.className = 'vram' + (r.verdict === 'NO_FIT' ? ' warn' : '');
+    const set = (cls, text, warn) => {
+      const el = row.querySelector('.' + cls);
+      el.textContent = text;
+      el.className = cls + (warn ? ' warn' : '');
+    };
+    set('vram', vramText(r, c), r.verdict === 'NO_FIT');
     row.querySelector('.verdict').innerHTML = `<span class="badge ${cls}">${label}</span>`;
-    const tps = row.querySelector('.tps');
-    tps.textContent = f(r.tps);
-    tps.className = 'tps' + (r.tps < G.decodeTpsMin ? ' warn' : '');
-    const tt = row.querySelector('.ttft');
-    tt.textContent = f(r.ttftMin);
-    tt.className = 'ttft' + (r.ttftMin > G.ttftWarnMin ? ' warn' : '');
-    row.querySelector('.agents').textContent = r.agents + ' / ' + r.sessions;
-    const turns = row.querySelector('.turns');
-    turns.textContent = turnsK(r.turnsPerWeek) + ' / ' + turnsK(r.turnsPerWeekMulti);
-    turns.className = 'turns' + (r.turnsPerWeek > 0 && r.turnsPerWeek < G.turnsPerWeekMin ? ' warn' : '');
-    const be = row.querySelector('.be');
-    be.textContent = f(r.breakevenYears1) + ' / ' + f(r.breakevenYears);
-    be.className = 'be' + (r.breakevenYears > G.buyHorizonYears || r.breakevenYears1 > G.buyHorizonYears ? ' warn' : '');
+    set('tps', f(r.tps), r.tps < G.decodeTpsMin);
+    set('ttft', f(r.ttftMin), r.ttftMin > G.ttftWarnMin);
+    set('agents', r.agents + ' / ' + r.sessions);
+    set('turns', turnsK(r.turnsPerWeek) + ' / ' + turnsK(r.turnsPerWeekMulti),
+      r.turnsPerWeek > 0 && r.turnsPerWeek < G.turnsPerWeekMin);
+    set('be', f(r.breakevenYears1) + ' / ' + f(r.breakevenYears),
+      r.breakevenYears > G.buyHorizonYears || r.breakevenYears1 > G.buyHorizonYears);
   }
   renderStrip(selectedCard);
 }

@@ -18,9 +18,6 @@ assert.ok(Math.abs(C.decodeTps(1792, 6, 0.55, 50) - 271.515) < 0.01);
 // --- prefill: 460 TFLOPS, 27B active, 35% eff → 460e12*.35/(54e9) = 2981.5
 assert.ok(Math.abs(C.prefillTps(460, 27, 35) - 2981.48) < 1);
 
-// --- ttft: 64K tokens @ 2981.5 t/s = 21.47 s = 0.358 min
-assert.ok(Math.abs(C.ttftMinutes(64000, 2981.48) - 0.3578) < 0.001);
-
 // --- electricity: idle 25W 24/7 + 325W extra for 4 load h/day @ $0.12 → $83.22
 assert.ok(Math.abs(C.annualElecUSD(25, 350, 4, 0.12) - 83.22) < 0.01);
 

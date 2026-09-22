@@ -46,10 +46,6 @@
     return (tflops * 1e12 * (efficiencyPct / 100)) / (2 * activeParamsB * 1e9);
   }
 
-  function ttftMinutes(promptTokens, prefillTps) {
-    return promptTokens / prefillTps / 60;
-  }
-
   // idle 24/7, TDP for `loadHoursPerDay`
   function annualElecUSD(idleW, loadW, loadHoursPerDay, usdPerKwh) {
     var kwh = (idleW * 8760 + (loadW - idleW) * loadHoursPerDay * 365) / 1000;
@@ -110,7 +106,7 @@
     agents = Math.max(agents, Math.min(sessions, 1));
     var tpsMulti = agents > 0 ? tpsAt(agents) : tps;
     var ptps = prefillTps(card.tflops, model.activeParamsB, GATES.prefillEffPct);
-    var ttft = ttftMinutes(promptK * 1000, ptps);
+    var ttft = promptK * 1000 / ptps / 60;
 
     var netHardware = card.priceUSD * (1 - resaleFraction(GATES.buyHorizonYears));
     var hostedPerM = hostedUsdPerM(usage.hostedUsdPerM, usage.hostedInUsdPerM, usage.hostedCacheDiscPct,
@@ -118,7 +114,7 @@
     // turns the card produces in the usage hours: fresh input (O + T) prefills compute-bound and
     // does not batch; decode of O runs across the agents at their per-session t/s. Local prefix
     // cache doesn't expire, so missed hosted cache reads cost no local prefill
-    var O = usage.outTokensPerTurn, prefillPerTurn = (O + (usage.toolTokensPerTurn || 0)) / ptps;
+    var O = usage.outTokensPerTurn, prefillPerTurn = (O + usage.toolTokensPerTurn) / ptps;
     function turnsPerDay(s, t) { return usage.hoursPerDay * 3600 / (prefillPerTurn + O / (s * t)); }
     var turns1 = turnsPerDay(1, tps), turnsMulti = turnsPerDay(Math.max(agents, 1), tpsMulti);
     var out1 = turns1 * O * 365, outMulti = turnsMulti * O * 365;
@@ -185,7 +181,6 @@
     fitGB: fitGB,
     decodeTps: decodeTps,
     prefillTps: prefillTps,
-    ttftMinutes: ttftMinutes,
     annualElecUSD: annualElecUSD,
     localCostPerM: localCostPerM,
     breakevenYears: breakevenYears,
