@@ -92,6 +92,11 @@ r = C.evaluate(spark, m14, usage);
 assert.equal(r.sessions, 44, `sessions ${r.sessions}`);
 assert.equal(r.agents, 5, `agents ${r.agents}`);
 assert.ok(Math.abs(r.tpsMulti - 10.549) < 0.001, `tpsMulti ${r.tpsMulti}`);
+assert.equal(r.agentsReason, 'VRAM fits 44 sessions; 5 run as agents — the 6th would drop each agent below' +
+  ' 10 t/s (every agent\'s decode reads all sessions\' KV).');
+assert.equal(r.reasons.at(-1), r.agentsReason);
+// every session runs as an agent → no cap reason
+assert.equal(C.evaluate(r3090, m27, usage).agentsReason, '');
 // verdict follows multi-agent break-even: PRO 6000 × 27B at 3 h/day, $0.47/$0.15 hosted,
 // 37 agents → 4.23 y RENT; one agent alone takes 36.8 y, and its 7,540 turns/week clear the floor
 r = C.evaluate(pro, m27, { ...usage, hostedUsdPerM: 0.47, hostedInUsdPerM: 0.15, hoursPerDay: 3 });

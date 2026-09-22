@@ -76,6 +76,11 @@
     return outUsd + (inUsd * fresh + cached * Math.max(contextK * 500 - fresh, 0)) / Math.max(outTokens, 1);
   }
 
+  function ordinal(n) {
+    var s = ['th', 'st', 'nd', 'rd'], v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  }
+
   // card: {vramGB, bandwidthGBs, tflops, tdpW, idleW, priceUSD}
   // model:{totalParamsB, activeParamsB, bytesPerWeight, kvPerKGB, kvScale?, maxContextK?}
   // usage:{hoursPerDay, usdPerKwh, contextK, hostedUsdPerM, hostedInUsdPerM,
@@ -149,6 +154,13 @@
     // the TTFT warning also rides on a turns-floor failure
     if (fits && tps >= GATES.decodeTpsMin && ttft > GATES.ttftWarnMin && ttft <= GATES.ttftFailMin)
       reasons.push('First token ~' + ttft.toFixed(1) + ' min (> ' + GATES.ttftWarnMin + ' min warn) for a ' + promptK + 'K prompt.');
+    // below the floor at one agent, the decode reason already covers it
+    var agentsReason = (fits && tps >= GATES.decodeTpsMin && agents < sessions)
+      ? 'VRAM fits ' + sessions + ' sessions; ' + (agents === 1 ? '1 runs as an agent' : agents + ' run as agents') +
+        ' — the ' + ordinal(agents + 1) + ' would drop each agent below ' + GATES.decodeTpsMin +
+        ' t/s (every agent\'s decode reads all sessions\' KV).'
+      : '';
+    if (agentsReason) reasons.push(agentsReason);
 
     GATES.holdYears.forEach(function (y) {
       costPerM[y] = localCostPerM(card.priceUSD, elec, outMulti, y);
@@ -160,6 +172,7 @@
       totalGB: fits ? mem.weightsGB + mem.kvGB * agents + GATES.overheadGB : mem.totalGB,
       sessions: sessions,
       agents: agents,
+      agentsReason: agentsReason,
       tps: tps,
       tpsMulti: tpsMulti,
       ttftMin: ttft,

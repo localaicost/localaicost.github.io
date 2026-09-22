@@ -224,6 +224,7 @@ function render() {
     set('tps', f(r.tps), r.tps < G.decodeTpsMin);
     set('ttft', f(r.ttftMin), r.ttftMin > G.ttftWarnMin);
     set('agents', r.agents + ' / ' + r.sessions);
+    row.querySelector('.agents').title = r.agentsReason;
     set('turns', turnsK(r.turnsPerWeek) + ' / ' + turnsK(r.turnsPerWeekMulti),
       r.turnsPerWeek > 0 && r.turnsPerWeek < G.turnsPerWeekMin);
     set('be', f(r.breakevenYears1) + ' / ' + f(r.breakevenYears),
