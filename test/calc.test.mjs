@@ -65,22 +65,20 @@ const spark = { vramGB: 128, bandwidthGBs: 273, tflops: 119, tdpW: 140, idleW: 1
 let r = C.evaluate({ ...r3090, bandwidthGBs: 50 }, m70, usage);
 assert.equal(r.verdict, 'NO_FIT');
 assert.equal(r.agents, 0, `agents ${r.agents}`);
-// 27B on the 3090 at 32K, 4 h/day — fits and decodes fine, but one agent's 4,929
-// turns/week is under the 7K floor → TOO_SLOW; failed-gate rows still carry the numbers:
+// 27B on the 3090 at 32K, 4 h/day — one agent's 12.38M fresh tokens/week clears the 12M floor:
 // one agent: 2512 tok ÷ 920.4 t/s prefill + 512 ÷ 28.89 t/s decode = 20.45 s/turn → 704 turns/day
-// = 4,929/week → 131.6 M tok/y × $7.363/M = $968.8/y hosted − $83.22/y electricity (TDP all
-// 4 h) against net $547 → break-even 0.62 y
+// = 4,929 turns × 2512 tok = 12.38M fresh/week → 131.6 M tok/y × $7.363/M = $968.8/y hosted
+// − $83.22/y electricity (TDP all 4 h) against net $547 → break-even 0.62 y
 // VRAM holds 2 sessions, both ≥ 10 t/s: 28.89 × (16.2 + 1.048) ÷ (16.2 + 2 × 1.048) = 27.23 t/s;
-// 2512 ÷ 920.4 + 512 ÷ (2 × 27.23) = 12.13 s/turn → 8,310/week → break-even 0.35 y
+// 2512 ÷ 920.4 + 512 ÷ (2 × 27.23) = 12.13 s/turn → 8,310 turns = 20.88M fresh/week → break-even 0.35 y
 r = C.evaluate(r3090, m27, usage);
-assert.equal(r.verdict, 'TOO_SLOW');
-assert.ok(r.reasons[0].includes('under the 7K floor'), r.reasons[0]);
+assert.equal(r.verdict, 'PASS');
 assert.equal(r.sessions, 2, `sessions ${r.sessions}`);
 assert.equal(r.agents, 2, `agents ${r.agents}`);
 assert.ok(Math.abs(r.tpsMulti - 27.234) < 0.001, `tpsMulti ${r.tpsMulti}`);
 assert.ok(Math.abs(r.totalGB - (16.2 + 2 * 2.096 + 2)) < 0.001, `fit total ${r.totalGB}`);
-assert.ok(Math.abs(r.turnsPerWeek - 4928.5) < 0.5, `turns/week ${r.turnsPerWeek}`);
-assert.ok(Math.abs(r.turnsPerWeekMulti - 8310.4) < 0.5, `turns/week multi ${r.turnsPerWeekMulti}`);
+assert.ok(Math.abs(r.freshPerWeek - 12.3804e6) < 100, `fresh/week ${r.freshPerWeek}`);
+assert.ok(Math.abs(r.freshPerWeekMulti - 20.8758e6) < 100, `fresh/week multi ${r.freshPerWeekMulti}`);
 assert.ok(Math.abs(r.elecAnnualUSD - 83.22) < 0.01, `electricity ${r.elecAnnualUSD}`);
 assert.ok(Math.abs(r.breakevenYears1 - 0.618) < 0.001, `breakeven 1 ${r.breakevenYears1}`);
 assert.ok(Math.abs(r.breakevenYears - 0.353) < 0.001, `breakeven ${r.breakevenYears}`);
@@ -98,30 +96,30 @@ assert.equal(r.reasons.at(-1), r.agentsReason);
 // every session runs as an agent → no cap reason
 assert.equal(C.evaluate(r3090, m27, usage).agentsReason, '');
 // verdict follows multi-agent break-even: PRO 6000 × 27B at 3 h/day, $0.47/$0.15 hosted,
-// 37 agents → 4.23 y RENT; one agent alone takes 36.8 y, and its 7,540 turns/week clear the floor
+// 37 agents → 4.23 y RENT; one agent alone takes 36.8 y, and its 18.9M fresh tokens/week clear the floor
 r = C.evaluate(pro, m27, { ...usage, hostedUsdPerM: 0.47, hostedInUsdPerM: 0.15, hoursPerDay: 3 });
 assert.equal(r.verdict, 'RENT');
 assert.equal(r.agents, 37, `agents ${r.agents}`);
 assert.ok(Math.abs(r.breakevenYears - 4.232) < 0.001, `breakeven ${r.breakevenYears}`);
 assert.ok(Math.abs(r.breakevenYears1 - 36.755) < 0.001, `breakeven 1 ${r.breakevenYears1}`);
 assert.ok(r.reasons[0].includes('at 37 agents'), r.reasons[0]);
-// a 21 GB 3090 holds one 27B session → singular "agent"; 6 h/day = 7,393 turns/week, 4.6 y RENT
+// a 21 GB 3090 holds one 27B session → singular "agent"; 6 h/day = 18.6M fresh tokens/week, 4.6 y RENT
 r = C.evaluate({ ...r3090, vramGB: 21 }, m27, { ...usage, hostedUsdPerM: 0.3, hostedInUsdPerM: 0.1, hoursPerDay: 6 });
 assert.equal(r.agents, 1, `agents ${r.agents}`);
 assert.ok(r.reasons[0].includes('at 1 agent,'), r.reasons[0]);
-// turns-floor failure keeps the TTFT warning: 48 GB card at 60 TFLOPS, 128K → 5.5 min, 4.2K/week
+// capacity-floor failure keeps the TTFT warning: 48 GB card at 60 TFLOPS, 128K → 5.5 min, 10.5M/week
 r = C.evaluate({ ...r3090, vramGB: 48, tflops: 60 }, m27, { ...usage, contextK: 128 });
 assert.equal(r.verdict, 'TOO_SLOW');
-assert.ok(r.reasons[0].includes('under the 7K floor'), r.reasons[0]);
+assert.ok(r.reasons[0].includes('under the 12M floor'), r.reasons[0]);
 assert.ok(r.reasons[1].includes('min warn'), r.reasons[1]);
-// just under the floor: 6,985 turns/week prints ~6.9K, never the 7K floor itself
-r = C.evaluate(r3090, m27, { ...usage, hoursPerDay: 4 * 6985 / 4928.5138 });
-assert.ok(r.reasons[0].startsWith('Only ~6.9K'), r.reasons[0]);
+// just under the floor: 11.99M fresh tokens/week prints ~11.9M, never the 12M floor itself
+r = C.evaluate(r3090, m27, { ...usage, hoursPerDay: 4 * 11.99e6 / 12380426.74 });
+assert.ok(r.reasons[0].startsWith('Only ~11.9M'), r.reasons[0]);
 // 0.1 h/day: below the floor → TOO_SLOW; one agent never covers electricity (be1 = ∞)
 // and the 2-agent break-even (~41.63 y) is still returned
 r = C.evaluate(r3090, m27, { ...usage, hoursPerDay: 0.1 });
 assert.equal(r.verdict, 'TOO_SLOW');
-assert.ok(r.reasons[0].includes('under the 7K floor'), r.reasons[0]);
+assert.ok(r.reasons[0].includes('under the 12M floor'), r.reasons[0]);
 assert.equal(r.breakevenYears1, Infinity);
 assert.ok(Math.abs(r.breakevenYears - 41.632) < 0.001, `breakeven ${r.breakevenYears}`);
 // no usage hours → one reason, not "never breaks even" on top
@@ -168,10 +166,10 @@ const uiUsage = { hoursPerDay: 30 / 7, usdPerKwh: 0.12, cacheMissPct: 2,
 for (const m of models) for (const c of cards) {
   r = C.evaluate(c, m, { ...uiUsage, contextK: m.contextK, hostedUsdPerM: m.hostedUsdPerM,
     hostedInUsdPerM: m.hostedInUsdPerM, hostedCacheDiscPct: m.hostedCacheDiscPct });
-  assert.ok(r.agents <= r.sessions && r.turnsPerWeekMulti >= r.turnsPerWeek - 1e-6, `${c.id} × ${m.id}: agents`);
+  assert.ok(r.agents <= r.sessions && r.freshPerWeekMulti >= r.freshPerWeek - 1e-6, `${c.id} × ${m.id}: agents`);
   assert.ok(r.tps < C.GATES.decodeTpsMin || r.agents === 0 || r.tpsMulti >= C.GATES.decodeTpsMin - 1e-9,
     `${c.id} × ${m.id}: tpsMulti ${r.tpsMulti}`);
-  for (const k of ['totalGB', 'tps', 'tpsMulti', 'ttftMin', 'turnsPerWeek', 'turnsPerWeekMulti', 'netHardwareUSD',
+  for (const k of ['totalGB', 'tps', 'tpsMulti', 'ttftMin', 'freshPerWeek', 'freshPerWeekMulti', 'netHardwareUSD',
     'elecAnnualUSD', 'hostedUsdPerM', 'sessions', 'agents'])
     assert.ok(Number.isFinite(r[k]), `${c.id} × ${m.id}: ${k} = ${r[k]}`);
 }

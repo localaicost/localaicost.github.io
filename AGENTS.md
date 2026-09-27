@@ -48,7 +48,7 @@ Made on purpose — don't reverse them silently.
   No bandwidth/$ or memory/$ columns — the verdict, t/s, TTFT and break-even columns answer them.
 - Decode floor is 10 t/s, not 5 — at 5 a card passed the gate but couldn't pace an agent's
   turns; the same floor sets the agent count.
-- Prefill is a disqualifier, not a cost — slow decode, TTFT or weekly turns ⇒ `TOO_SLOW`,
+- Prefill is a disqualifier, not a cost — slow decode, TTFT or weekly fresh tokens ⇒ `TOO_SLOW`,
   never a $ penalty.
 - Failed-gate rows still show t/s, break-even and $/M — the badge carries the verdict.
 - Working context = a session's prompt fill, system prompt included (no separate input — it
@@ -72,12 +72,11 @@ Made on purpose — don't reverse them silently.
 - Workload = card capacity in the usage hours (no turns input); usage hours are fully busy;
   both break-evens shown, the verdict uses the agents'.
 - Usage default 30 h/week — hours the card runs agents under load, not the work week.
-- Usage defaults come from a heavy agent user's logged means (650 out / 1350 fresh / 2% miss,
-  13.5K Pro-plan requests), not medians or P90 — medians undercount spend, a P90 day
-  annualized ~doubles it.
-- Turns floor: 1-agent turns/week < 7K ⇒ `TOO_SLOW` (TTFT warning still added) — 7K = one
-  Pro-plan user's week, full-price buyers don't buy to match it. Defaults target ~30K/week
-  (heavy multi-agent ~60K).
+- Usage defaults come from a heavy agent user's logged means (650 out / 1350 tool / 2% miss),
+  not medians or P90 — medians undercount spend, a P90 day annualized ~doubles it.
+- Capacity floor: 1-agent fresh tokens/week (turns × (O+T)) < 12M ⇒ `TOO_SLOW` (TTFT warning
+  still added) — fresh input, not turns, tracks plan limits; 12M = one logged Pro week at the
+  cap; full-price buyers don't buy to match it.
 - Agents = most S ≤ sessions fit with t/s per agent ≥ the decode floor; sessions fit =
   `floor((VRAM − weights − 2 GB) ÷ KV per session)` (2 GB engine-level); turns/day at S =
   `usage h × 3600 ÷ ((O+T) ÷ prefill t/s + O ÷ (S × t/s(S)))`; prefill doesn't batch.
