@@ -14,7 +14,7 @@
     decodeTpsMin: 10,     // TOO_SLOW below
     ttftWarnMin: 5,       // warn above
     ttftFailMin: 30,      // TOO_SLOW above
-    turnsPerWeekMin: 7000, // TOO_SLOW below (1 agent; one Pro plan user's week)
+    freshPerWeekMin: 12e6, // TOO_SLOW below (1 agent's fresh input tokens; one Pro plan user's week)
     buyHorizonYears: 3,   // break-even beyond this → rent; also the resale point
     overheadGB: 2,        // CUDA context + activation margin
     decodeEffPct: 50,     // % of bandwidth-bound decode t/s reached
@@ -119,9 +119,10 @@
     // turns the card produces in the usage hours: fresh input (O + T) prefills compute-bound and
     // does not batch; decode of O runs across the agents at their per-session t/s. Local prefix
     // cache doesn't expire, so missed hosted cache reads cost no local prefill
-    var O = usage.outTokensPerTurn, prefillPerTurn = (O + usage.toolTokensPerTurn) / ptps;
-    function turnsPerDay(s, t) { return usage.hoursPerDay * 3600 / (prefillPerTurn + O / (s * t)); }
+    var O = usage.outTokensPerTurn, freshPerTurn = O + usage.toolTokensPerTurn;
+    function turnsPerDay(s, t) { return usage.hoursPerDay * 3600 / (freshPerTurn / ptps + O / (s * t)); }
     var turns1 = turnsPerDay(1, tps), turnsMulti = turnsPerDay(Math.max(agents, 1), tpsMulti);
+    var fresh1 = turns1 * freshPerTurn * 7, freshMulti = turnsMulti * freshPerTurn * 7;
     var out1 = turns1 * O * 365, outMulti = turnsMulti * O * 365;
     // the card runs at capacity for all usage hours
     var elec = annualElecUSD(card.idleW, card.tdpW, usage.hoursPerDay, usage.usdPerKwh);
@@ -139,11 +140,11 @@
     } else if (ttft > GATES.ttftFailMin) {
       verdict = 'TOO_SLOW';
       reasons.push(promptK + 'K prefill (working context) takes ~' + ttft.toFixed(0) + ' min (> ' + GATES.ttftFailMin + ' min floor).');
-    } else if (turns1 > 0 && turns1 * 7 < GATES.turnsPerWeekMin) {
+    } else if (fresh1 > 0 && fresh1 < GATES.freshPerWeekMin) {
       verdict = 'TOO_SLOW';
-      // floor to 0.1K so a value just under the floor never prints as the floor
-      reasons.push('Only ~' + Math.floor(turns1 * 7 / 100) / 10 + 'K turns/week for 1 agent in the usage hours — under the ' +
-        GATES.turnsPerWeekMin / 1000 + 'K floor (one Pro plan user).');
+      // floor to 0.1M so a value just under the floor never prints as the floor
+      reasons.push('Only ~' + Math.floor(fresh1 / 1e5) / 10 + 'M fresh tokens/week for 1 agent in the usage hours — under the ' +
+        GATES.freshPerWeekMin / 1e6 + 'M floor (one Pro plan user).');
     } else {
       verdict = (be <= GATES.buyHorizonYears) ? 'PASS' : 'RENT';
       if (verdict === 'RENT')
@@ -151,7 +152,7 @@
           : isFinite(be) ? 'Break-even ~' + be.toFixed(1) + ' y at ' + agents + (agents === 1 ? ' agent' : ' agents') + ', past the ' + GATES.buyHorizonYears + ' y horizon.'
           : 'Never breaks even — electricity costs at least what the hosted tokens would.');
     }
-    // the TTFT warning also rides on a turns-floor failure
+    // the TTFT warning also rides on a capacity-floor failure
     if (fits && tps >= GATES.decodeTpsMin && ttft > GATES.ttftWarnMin && ttft <= GATES.ttftFailMin)
       reasons.push('First token ~' + ttft.toFixed(1) + ' min (> ' + GATES.ttftWarnMin + ' min warn) for a ' + promptK + 'K prompt.');
     // below the floor at one agent, the decode reason already covers it
@@ -176,8 +177,8 @@
       tps: tps,
       tpsMulti: tpsMulti,
       ttftMin: ttft,
-      turnsPerWeek: turns1 * 7,
-      turnsPerWeekMulti: turnsMulti * 7,
+      freshPerWeek: fresh1,
+      freshPerWeekMulti: freshMulti,
       netHardwareUSD: netHardware,
       elecAnnualUSD: elec,
       outTokensPerYear: outMulti,

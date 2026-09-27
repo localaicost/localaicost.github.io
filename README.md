@@ -25,19 +25,20 @@ Gates run in series; failing one sets the verdict (break-even and $/M are still 
 2. Usability — decode ≥ 10 t/s for one agent; first token (working context)
    ≤ 30 min prefill, warn above 5 min. Rationale: slow decode is un-interactive;
    nobody waits 30 min for an agent to start working.
-3. Capacity — 1-agent turns/week ≥ 7K. Rationale: 7K turns/week is one Pro plan
-   user's week. Nobody pays full price for these cards to match a Pro plan, so a card
+3. Capacity — 1-agent fresh tokens/week ≥ 12M. Rationale: 12M fresh tokens/week is one Pro
+   plan user's week. Nobody pays full price for these cards to match a Pro plan, so a card
    that clears the floor is still slow; one that misses it can't serve even that in
    the usage hours. Raise usage hours to see whether a longer wait clears it.
 4. Economics — break-even = `price × (1 − 0.75³)` ÷ (annual hosted-dollar value
    of the card's output (input-loaded, see Accuracy) − annual
    electricity). `PASS` if ≤ 3 years at the agents' capacity, `RENT` otherwise.
 
-Capacity — the turns the card produces in the usage hours, shown for one agent and for the
-most agents it serves:
+Capacity — the fresh tokens (response + tool output) the card produces in the usage hours,
+shown for one agent and for the most agents it serves:
 
 - Turns / day at S agents = `usage hours × 3600 ÷ ((response + tool output) ÷ prefill t/s +
   response ÷ (S × decode t/s per agent))`. Prefill is compute-bound and does not batch.
+- Fresh tokens / week = `turns / day × (response + tool output) × 7`.
 - Agents = the most S ≤ sessions fit whose decode t/s per agent stays ≥ 10; sessions fit =
   `floor((VRAM − weights − 2 GB) ÷ KV per session)`.
 - Break-even is shown for both; the verdict uses the agents'.
@@ -54,8 +55,9 @@ A turn is set by response tokens / turn (default 650) and tool output tokens / t
 The number of turns comes from the card's speed and the usage hours.
 Usage hours are the hours the card runs agents under load, not the user's work week. The 30 h/week
 default assumes a 40–50 h work week with local downtime in between.
-The usage defaults target ~30K turns/week (≈ Claude Code 5x; Pro limits hit at 6–7K); heavy
-multi-agent up to ~60K (20x). Extrapolated estimate, to be replaced with logged session data.
+Plan limits track fresh input tokens, not turns: across three logged weekly windows of a
+Claude Max 20x user, request counts per full week spread ±10% while fresh tokens held at
+~180M ±4%. The 12M floor is the same user's last Pro week, logged at the weekly limit.
 
 ## Accuracy
 
@@ -67,7 +69,7 @@ Everything is an **estimate for gating**, not a performance prediction:
   so MoE estimates skew optimistic — put a measured figure in the override field
   if you have one. It wins over the estimate.
 - Prefill: `t/s = TFLOPS × 35% ÷ (2 × active)`. Coarse (MoE prefill, batching, framework
-  efficiency and long-context attention cost all move it); it only feeds the TTFT gate.
+  efficiency and long-context attention cost all move it); it feeds the TTFT and capacity gates.
 - TFLOPS is FP16-dense class; estimated specs are flagged in the card's note. Prices are street
   estimates.
 - KV/1K values are bf16; the KV cache precision dropdown halves them for fp8.

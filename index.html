@@ -114,7 +114,7 @@
   <table id="cards">
     <thead>
       <tr><th>Card</th><th>VRAM, GB (used / total)</th><th>Bandwidth, TB/s</th><th>Verdict</th><th>t/s</th>
-          <th>First token, min</th><th>Agents</th><th>Turns / week (1 / agents)</th>
+          <th>First token, min</th><th>Agents</th><th>Fresh tokens / week (1 / agents)</th>
           <th>Break-even, y (1 / agents)</th><th>Price</th></tr>
     </thead>
     <tbody></tbody>
@@ -179,7 +179,7 @@ tbody.innerHTML = CARDS.map(c => `
     <td class="tps"></td>
     <td class="ttft"></td>
     <td class="agents"></td>
-    <td class="turns"></td>
+    <td class="fresh"></td>
     <td class="be"></td>
     <td><input class="price" data-card="${c.id}" type="number" step="100" value="${c.priceUSD}"></td>
   </tr>`).join('');
@@ -189,7 +189,7 @@ const BADGE = { PASS:['ok','PASS'], RENT:['rent','RENT'], NO_FIT:['bad',"NO FIT"
 const f = (x, d=1) => (x == null || !isFinite(x)) ? '∞'
   : x.toLocaleString('en-US', { maximumFractionDigits: d });
 const vramText = (r, c) => f(r.totalGB) + ' / ' + c.vramGB;
-const turnsK = x => f(Math.floor(x / 100) / 10) + 'K';   // floor: 6,985 shows 6.9K, not the 7K floor
+const freshM = x => f(Math.floor(x / 1e5) / 10) + 'M';   // floor: 11.99M shows 11.9M, not the 12M floor
 const cell = (k, v, hl) => `<div class="cell"><div class="k">${k}</div><div class="v${hl ? ' hl' : ''}">${v}</div></div>`;
 let selectedCard = CARDS[0].id;   // strip shows the top card until you pick another row
 const results = {};               // card id → last evaluate() result
@@ -225,8 +225,8 @@ function render() {
     set('ttft', f(r.ttftMin), r.ttftMin > G.ttftWarnMin);
     set('agents', r.agents + ' / ' + r.sessions);
     row.querySelector('.agents').title = r.agentsReason;
-    set('turns', turnsK(r.turnsPerWeek) + ' / ' + turnsK(r.turnsPerWeekMulti),
-      r.turnsPerWeek > 0 && r.turnsPerWeek < G.turnsPerWeekMin);
+    set('fresh', freshM(r.freshPerWeek) + ' / ' + freshM(r.freshPerWeekMulti),
+      r.freshPerWeek > 0 && r.freshPerWeek < G.freshPerWeekMin);
     set('be', f(r.breakevenYears1) + ' / ' + f(r.breakevenYears),
       r.breakevenYears > G.buyHorizonYears || r.breakevenYears1 > G.buyHorizonYears);
   }
@@ -279,19 +279,20 @@ $('accuracy_body').innerHTML = `
   prefill: TFLOPS × ${G.prefillEffPct}% ÷ (2×active) ·
   hosted $/M out: out + (in×(response + tool) + in×(1 − cache disc×(1 − misses))×(context×10³ ÷ 2 − response − tool)) ÷ response ·
   turns / day at S agents: usage hours × 3600 ÷ ((response + tool) ÷ prefill t/s + response ÷ (S × t/s per agent)) ·
+  fresh tokens / week: turns / day × (response + tool) × 7 ·
   output / year: turns / day × response × 365 ·
   electricity: idle 24/7 + TDP for all usage hours ·
   break-even: price×(1−${G.buyHorizonYears} y resale) ÷ (output / year × hosted $/M ÷ 10⁶ − annual electricity), for 1 agent and for the agents</p>
   <p><b>Gates</b> — per card, in order: fit (≥ 1 session) → decode ≥ ${G.decodeTpsMin} t/s (1 agent) → TTFT ≤ ${G.ttftFailMin} min
-  (warn &gt; ${G.ttftWarnMin}) → 1-agent turns/week ≥ ${G.turnsPerWeekMin / 1000}K →
+  (warn &gt; ${G.ttftWarnMin}) → 1-agent fresh tokens/week ≥ ${G.freshPerWeekMin / 1e6}M →
   break-even (agents) ≤ ${G.buyHorizonYears} y = PASS · The card is assumed to run at capacity
   for all usage hours · Batched decode assumes lockstep agents, an optimistic bound; prefill does not scale with batching</p>
   <p><b>Resale</b> — ${pct(G.depreciationPerYear)}/yr depreciation, not measured:
   ${G.holdYears.map(y => `${pct(LLMEcon.resaleFraction(y))} back after ${y} y (${TIER[y]})`).join(', ')}.
   Local $/M columns use the matching resale</p>
-  <p><b>Turns need</b> — defaults target ~30K turns/week (≈ Claude Code 5x; Pro limits hit at 6–7K); heavy multi-agent up to
-  ~60K (20x). The ${G.turnsPerWeekMin / 1000}K floor is one Pro plan user's week: a card that clears it is
-  still slow for a full-price buyer. Extrapolated estimate</p>
+  <p><b>Capacity need</b> — plan limits track fresh input tokens (response + tool output), not turns:
+  a Claude Max 20x week is ~180M. The ${G.freshPerWeekMin / 1e6}M floor is one Pro plan user's week:
+  a card that clears it is still slow for a full-price buyer</p>
   <p><b>Data</b> — prices are street estimates; estimated specs are flagged in the row detail note;
   idle power is an estimate on every card</p>`;
 
