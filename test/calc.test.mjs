@@ -161,8 +161,8 @@ for (const m of models) {
   assert.ok(m.hostedUsdPerM > 0 && m.hostedInUsdPerM > 0 && m.hostedCacheDiscPct >= 0,
     `${m.id}: hosted out/in rates and cache discount`);
 }
-const uiUsage = { hoursPerDay: 30 / 7, usdPerKwh: 0.12, cacheMissPct: 2,
-  outTokensPerTurn: 650, toolTokensPerTurn: 1350 };
+const uiUsage = { hoursPerDay: 30 / 7, usdPerKwh: 0.12, cacheMissPct: 1,
+  outTokensPerTurn: 400, toolTokensPerTurn: 4150 };
 for (const m of models) for (const c of cards) {
   r = C.evaluate(c, m, { ...uiUsage, contextK: m.contextK, hostedUsdPerM: m.hostedUsdPerM,
     hostedInUsdPerM: m.hostedInUsdPerM, hostedCacheDiscPct: m.hostedCacheDiscPct });

@@ -50,8 +50,9 @@ Working context is the prompt fill a session reaches — the agent harness's sys
 included. Presets default to 256K; pick another value for shorter or longer sessions. It is
 capped at the model's max supported context (preset `maxContextK`, defaults to `contextK`).
 
-A turn is set by response tokens / turn (default 650) and tool output tokens / turn (default
-1,350); cache misses default to 2%. The defaults are per-request means from a heavy agent user.
+A turn is set by response tokens / turn (default 400) and tool output tokens / turn (default
+4,150); cache misses default to 1%. The defaults are per-request means from a heavy agent user's
+three logged weeks.
 The number of turns comes from the card's speed and the usage hours.
 Usage hours are the hours the card runs agents under load, not the user's work week. The 30 h/week
 default assumes a 40–50 h work week with local downtime in between.

@@ -72,8 +72,9 @@ Made on purpose — don't reverse them silently.
 - Workload = card capacity in the usage hours (no turns input); usage hours are fully busy;
   both break-evens shown, the verdict uses the agents'.
 - Usage default 30 h/week — hours the card runs agents under load, not the work week.
-- Usage defaults come from a heavy agent user's logged means (650 out / 1350 tool / 2% miss),
-  not medians or P90 — medians undercount spend, a P90 day annualized ~doubles it.
+- Usage defaults come from a heavy agent user's logged means over three weeks (400 out /
+  4150 tool / 1% miss), not medians or P90 — medians undercount spend, a P90 day annualized
+  ~doubles it.
 - Capacity floor: 1-agent fresh tokens/week (turns × (O+T)) < 12M ⇒ `TOO_SLOW` (TTFT warning
   still added) — fresh input, not turns, tracks plan limits; 12M = one logged Pro week at the
   cap; full-price buyers don't buy to match it.
